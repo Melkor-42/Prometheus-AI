@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-// import { useNavigate } from 'react-router-dom';
 
-const Welcome: React.FC = () => {
-  // const navigate = useNavigate();
+interface WelcomeProps {
+  onJoinRoom: (roomId: string) => void;
+}
+
+const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom }) => {
   const [joinRoomId, setJoinRoomId] = useState('');
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,13 +56,12 @@ const Welcome: React.FC = () => {
     setError(null);
     
     try {
-      // Create a new room using the ChatAPI
       console.log('Creating room...');
-      setIsLoading(false);
+      // Create a new room using the ChatAPI
       const roomId = await window.ChatAPI.createRoom();
       console.log('Room created:', roomId);
-      // Navigate to the chat room
-      // navigate(`/chat/${roomId}`);
+      // Navigate to the chat room using the prop function
+      onJoinRoom(roomId);
     } catch (err) {
       console.error('Failed to create room:', err);
       setError('Failed to create room. Please try again.');
@@ -89,8 +90,8 @@ const Welcome: React.FC = () => {
       console.log('Joining room...');
       const success = await window.ChatAPI.joinRoom(joinRoomId);
       if (success) {
-        // navigate(`/chat/${joinRoomId}`);
-        console.log('Joined room:', joinRoomId);
+        // Navigate to the chat room using the prop function
+        onJoinRoom(joinRoomId);
       } else {
         throw new Error('Failed to join room');
       }
@@ -125,7 +126,7 @@ const Welcome: React.FC = () => {
       <div className="space-y-4 w-full max-w-sm">
         <button
           onClick={handleCreateRoom}
-          // disabled={isLoading || !apiReady}
+          disabled={isLoading || !apiReady}
           className="w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
         >
           {isLoading ? 'Creating...' : 'Create New Room'}

@@ -13,6 +13,7 @@ teardown(() => swarm.destroy())
 
 
 let activeTopic = null
+let currentRoomId = null
 const connectedPeers = new Map()
 
 // API for the frontend to call
@@ -24,6 +25,9 @@ export default {
     const topicBuffer = crypto.randomBytes(32)
     const topic = await joinSwarm(topicBuffer)
     console.log('Room created with ID:', topic);
+
+    activeTopic = topicBuffer
+    currentRoomId = topic
     return topic
   },
 
@@ -39,15 +43,6 @@ export default {
       console.error('Failed to join room:', err);
       return false
     }
-  },
-
-  joinSwarm: async (topicBuffer) => {
-
-    // Join the swarm with the topic. Setting both client/server to true means that this app can act as both.
-    const discovery = swarm.join(topicBuffer, { client: true, server: true })
-    await discovery.flushed()
-    const topic = b4a.toString(topicBuffer, 'hex')
-    return topic
   },
 
   // Send a message to all connected peers
@@ -74,16 +69,19 @@ export default {
 
   // Get the current topic (room ID)
   getCurrentTopic: () => {
-    return activeTopic ? b4a.toString(activeTopic, 'hex') : null
+    // return activeTopic ? b4a.toString(activeTopic, 'hex') : null
+    return currentRoomId ? currentRoomId : null
   },
 
   // Leave the current room
   leaveRoom: async () => {
     console.log('Leaving room');
+
     if (activeTopic) {
       swarm.leave(activeTopic)
-      activeTopic = null
       connectedPeers.clear()
+      activeTopic = null
+      currentRoomId = null
       console.log('Room left successfully');
       return true
     }
@@ -100,26 +98,26 @@ export function onMessage(callback) {
   console.log('Message callback registered');
 }
 
-// Join the swarm with the given topic
 async function joinSwarm(topicBuffer) {
   console.log('Joining swarm...');
-  
-  // Leave previous room if there is one
+
   if (activeTopic) {
     console.log('Leaving previous room');
     swarm.leave(activeTopic)
     connectedPeers.clear()
+    activeTopic = null
+    currentRoomId = null
   }
 
-  activeTopic = topicBuffer
-  
-  // Join the swarm with the topic
+  // Join the swarm with the topic. Setting both client/server to true means that this app can act as both.
   console.log('Connecting to the DHT network...');
   const discovery = swarm.join(topicBuffer, { client: true, server: true })
   await discovery.flushed()
   console.log('Connected to the DHT network');
 
-  return b4a.toString(topicBuffer, 'hex')
+  const topic = b4a.toString(topicBuffer, 'hex')
+  console.log('Return topic:', topic);
+  return topic
 }
 
 // Handle new connections and messages

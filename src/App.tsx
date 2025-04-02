@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Welcome from './pages/Welcome'
-// import Chat from './pages/Chat'
+import Chat from './pages/Chat'
+
+// Define app states
+type AppPage = 'welcome' | 'chat';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false)
+  const [currentPage, setCurrentPage] = useState<AppPage>('welcome')
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
@@ -14,6 +18,15 @@ function App() {
     if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       setDarkMode(true)
       document.documentElement.classList.add('dark')
+    }
+
+    // Check if we're already in a room
+    if (typeof window.ChatAPI !== 'undefined') {
+      const existingRoom = window.ChatAPI.getCurrentTopic();
+      if (existingRoom) {
+        setCurrentRoomId(existingRoom);
+        setCurrentPage('chat');
+      }
     }
   }, [])
 
@@ -30,16 +43,32 @@ function App() {
     }
   }
 
+  // Navigation functions
+  const navigateToChat = (roomId: string) => {
+    setCurrentRoomId(roomId);
+    setCurrentPage('chat');
+  }
+
+  const navigateToWelcome = () => {
+    setCurrentPage('welcome');
+    setCurrentRoomId(null);
+  }
+
+  // Render the correct component based on current state
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case 'chat':
+        return <Chat roomId={currentRoomId} onLeaveRoom={navigateToWelcome} />;
+      case 'welcome':
+      default:
+        return <Welcome onJoinRoom={navigateToChat} />;
+    }
+  }
+
   return (
-    <BrowserRouter>
-      <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
-        <Welcome />
-        {/* <Routes> */}
-          {/* <Route path="/" element={<Welcome />} /> */}
-          {/* <Route path="/chat/:roomId?" element={<Chat />} /> */}
-        {/* </Routes> */}
-      </Layout>
-    </BrowserRouter>
+    <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+      {renderCurrentPage()}
+    </Layout>
   )
 }
 
