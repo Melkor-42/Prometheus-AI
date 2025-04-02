@@ -10,13 +10,25 @@
     "pear": {
       "type": "desktop",
       "gui": {
-        "height": 400,
-        "width": 700
-      }
+        "height": 600,
+        "width": 900,
+        "center": true,
+        "backgroundColor": "#1e293b",
+        "minWidth": 500,
+        "minHeight": 400
+      },
+      "links": [
+        "https://*",
+        "http://*",
+        "localhost:*"
+      ]
     },
     "dependencies": {
       "react": "^19.0.0",
-      "react-dom": "^19.0.0"
+      "react-dom": "^19.0.0",
+      "hyperswarm": "^4.7.14",
+      "hypercore-crypto": "^3.4.0",
+      "b4a": "^1.6.4"
     },
     "devDependencies": {
       "@eslint/js": "^9.21.0",

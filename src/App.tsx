@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Welcome from './pages/Welcome'
+// import Chat from './pages/Chat'
 
 function App() {
   const [darkMode, setDarkMode] = useState(false)
@@ -29,9 +31,15 @@ function App() {
   }
 
   return (
-    <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
-      <Welcome />
-    </Layout>
+    <BrowserRouter>
+      <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+        <Welcome />
+        {/* <Routes> */}
+          {/* <Route path="/" element={<Welcome />} /> */}
+          {/* <Route path="/chat/:roomId?" element={<Chat />} /> */}
+        {/* </Routes> */}
+      </Layout>
+    </BrowserRouter>
   )
 }
 
