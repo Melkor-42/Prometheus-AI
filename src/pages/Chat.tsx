@@ -154,7 +154,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
 
   if (!apiReady) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-7rem)]">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center p-4">
           <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
             Initializing chat...
@@ -169,7 +169,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
 
   if (isConnecting) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-7rem)]">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center p-4">
           <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
             Connecting to room...
@@ -183,7 +183,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-7rem)]">
+    <div className="flex flex-col h-full">
       {/* Room header with peer count */}
       <div className="p-4 rounded-t-lg flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -219,8 +219,8 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
         </div>
       </div>
       
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 bg-white dark:bg-gray-900 space-y-3">
+      {/* Messages area - make only this part scrollable */}
+      <div className="flex-grow overflow-y-auto p-4 bg-white dark:bg-gray-900 space-y-3">
         {messages.length === 0 ? (
           <p className="text-center text-gray-500 dark:text-gray-400 italic">
             No messages yet. Start the conversation!

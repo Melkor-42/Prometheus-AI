@@ -103,7 +103,7 @@ const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[calc(100vh-7rem)] text-center">
+    <div className="flex flex-col items-center justify-center h-full overflow-auto">
       <h1 className="text-4xl font-bold my-4 text-gray-900 dark:text-white">
         Prometheus P2P Chat
       </h1>

@@ -10,10 +10,10 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, darkMode, toggleDarkMode }) => {
   return (
-    <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900 transition-colors duration-200">
+    <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-gray-900 transition-colors duration-200">
       <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-      <main className="flex-grow">
-        <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8">
+      <main className="flex-grow overflow-hidden">
+        <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {children}
         </div>
       </main>
