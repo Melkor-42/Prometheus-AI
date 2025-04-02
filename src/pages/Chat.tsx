@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Message } from '../types/chat';
 import { v4 as uuidv4 } from 'uuid';
+import CopyIcon from '../assets/copy.svg?react';
+import CopySuccessIcon from '../assets/copy-success.svg?react';
 
 interface ChatProps {
   roomId: string | null;
@@ -12,8 +14,11 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [peerCount, setPeerCount] = useState(0);
   const [roomTopic, setRoomTopic] = useState<string | null>(null);
+  // const [roomTopic, setRoomTopic] = useState<string | null>("1234567890");
   const [apiReady, setApiReady] = useState(false);
+  // const [apiReady, setApiReady] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Check if ChatAPI is available
@@ -57,7 +62,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
   useEffect(() => {
     if (!apiReady) return;
 
-    // Check if we're in a room, if not, navigate to home
+  //   // Check if we're in a room, if not, navigate to home
     if (!roomId && !window.ChatAPI.getCurrentTopic()) {
       onLeaveRoom();
       return;
@@ -141,6 +146,12 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
     onLeaveRoom();
   };
 
+  const handleCopyRoomId = () => {
+    navigator.clipboard.writeText(roomTopic || '');
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
+  };
+
   if (!apiReady) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-7rem)]">
@@ -172,21 +183,27 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)]">
+    <div className="flex flex-col h-full min-h-[calc(100vh-7rem)]">
       {/* Room header with peer count */}
-      <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-t-lg flex justify-between items-center">
-        <div>
+      <div className="p-4 rounded-t-lg flex justify-between items-center">
+        <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Room: {roomTopic ? roomTopic.substring(0, 10) + '...' : 'Loading...'}
           </h2>
           <button 
-            onClick={() => {
-              navigator.clipboard.writeText(roomTopic || '');
-              alert('Room ID copied to clipboard!');
-            }}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            onClick={handleCopyRoomId}
+            className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors duration-200"
           >
-            Copy Room ID
+            {copySuccess ? (
+              <>
+                <CopySuccessIcon className="w-4 h-4 text-green-500" />
+                <span className="text-green-500">Copied!</span>
+              </>
+            ) : (
+              <>
+                <CopyIcon className="w-4 h-4" />
+              </>
+            )}
           </button>
         </div>
         <div className="flex items-center gap-4">
@@ -234,7 +251,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
       {/* Message input form */}
       <form
         onSubmit={handleSendMessage}
-        className="p-4 bg-gray-100 dark:bg-gray-800 rounded-b-lg"
+        className="p-4 rounded-b-lg"
       >
         <div className="flex gap-2">
           <input

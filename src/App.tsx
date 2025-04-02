@@ -10,6 +10,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(false)
   const [currentPage, setCurrentPage] = useState<AppPage>('welcome')
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null)
+  // const [currentRoomId, setCurrentRoomId] = useState<string | null>("1234567890")
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
