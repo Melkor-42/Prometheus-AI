@@ -4,6 +4,19 @@ export interface Message {
   content: string;
   timestamp: number;
   isMe: boolean;
+  type?: string;
+}
+
+export interface StructuredMessage {
+  id: string;
+  content: string;
+  sender: {
+    id: string;
+    displayName: string;
+  };
+  timestamp: number;
+  type: string;
+  room: string | null;
 }
 
 export interface Room {
@@ -11,17 +24,45 @@ export interface Room {
   peerCount: number;
 }
 
+export interface UserIdentity {
+  id: string;
+  displayName: string;
+}
+
 // Define the global ChatAPI interface
 declare global {
   interface Window {
     ChatAPI: {
+      // Room management
       createRoom: () => Promise<string>;
       joinRoom: (topicHex: string) => Promise<boolean>;
+      leaveRoom: () => Promise<boolean>;
+      
+      // Message handling
       sendMessage: (message: string) => boolean;
+      getMessages: (roomId?: string) => StructuredMessage[];
+      onNewMessage: (callback: (message: StructuredMessage) => void) => Function;
+      
+      // Status information
       getPeerCount: () => number;
       getCurrentTopic: () => string | null;
-      leaveRoom: () => Promise<boolean>;
+      getPeers: () => Array<{id: string, displayName: string, joinedAt: number}>;
+      
+      // User identity
+      getUserIdentity: () => UserIdentity;
+      setDisplayName: (name: string) => string;
+      
+      // Legacy
       onMessage: (callback: (peerName: string, message: string) => void) => void;
     };
+    
+    // Global message classes
+    ChatMessage: any;
+    MessageType: {
+      TEXT: string;
+      SYSTEM: string;
+      IMAGE: string;
+    };
+    userIdentity: any;
   }
 } 

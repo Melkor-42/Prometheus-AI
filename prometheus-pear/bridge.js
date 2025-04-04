@@ -16,6 +16,7 @@ function initializeBridge() {
     
     // Expose the backend API to the window object so it can be accessed from the frontend
     window.ChatAPI = {
+      // Room management
       createRoom: async () => {
         return await backend.createRoom();
       },
@@ -24,29 +25,65 @@ function initializeBridge() {
         return await backend.joinRoom(roomId);
       },
       
+      leaveRoom: async () => {
+        return await backend.leaveRoom();
+      },
+      
+      // Message handling
       sendMessage: (message) => {
         return backend.sendMessage(message);
       },
       
+      getMessages: (roomId) => {
+        return backend.getMessages(roomId);
+      },
+      
+      onNewMessage: (callback) => {
+        return backend.onNewMessage(callback);
+      },
+      
+      // Status information
       getPeerCount: () => {
         return backend.getPeerCount();
+      },
+      
+      getPeers: () => {
+        return backend.getPeers();
       },
       
       getCurrentTopic: () => {
         return backend.getCurrentTopic();
       },
       
-      leaveRoom: async () => {
-        return await backend.leaveRoom();
+      // User identity management
+      setDisplayName: (name) => {
+        return backend.setDisplayName(name);
       },
       
-      // Register a message handler
+      getUserIdentity: () => {
+        return backend.getUserIdentity();
+      },
+      
+      // Legacy message handler (for backwards compatibility)
       onMessage: (callback) => {
         onMessage((peerName, message) => {
           callback(peerName, message);
         });
       }
     };
+    
+    // Also import the message and identity modules to make them available globally
+    Promise.all([
+      import('./messages.js'),
+      import('./identity.js')
+    ]).then(([messageModule, identityModule]) => {
+      window.ChatMessage = messageModule.Message;
+      window.MessageType = messageModule.MessageType;
+      window.userIdentity = identityModule.userIdentity;
+      console.log('Message and identity modules imported');
+    }).catch(err => {
+      console.error('Failed to import modules:', err);
+    });
     
     // Dispatch an event when the ChatAPI is ready
     window.dispatchEvent(new Event('chatapi-ready'));
