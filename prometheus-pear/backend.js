@@ -150,19 +150,13 @@ swarm.on('connection', (peer) => {
   
   // Handle incoming messages
   peer.on('data', message => {
-    // const messageStr = b4a.toString(message);
-    const messageStr = message
+    const messageStr = b4a.toString(message);
+    // const messageStr = message
     // console.log(`Received message from ${name}: ${messageStr}`);
     
     if (messageCallback) {
       messageCallback(name, messageStr)
     }
-  })
-  
-  // Handle disconnections
-  peer.on('close', () => {
-    console.log(`Peer disconnected: ${name}`)
-    //TODO: callback if needed
   })
   
   peer.on('error', (e) => {
@@ -174,6 +168,13 @@ swarm.on('connection', (peer) => {
       console.error(`Connection error with peer ${name}:`, e)
     }
   })
+
+  // Handle disconnections
+  peer.on('close', () => {
+    console.log(`Peer disconnected: ${name}`)
+    //TODO: callback if needed
+  })
+
 })
 
 swarm.on('update', () => {
