@@ -58,11 +58,3 @@ function initializeBridge() {
 
 // Start waiting for Pear
 waitForPear();
-
-// If Pear provides a teardown function, use it for cleanup
-if (typeof Pear !== 'undefined' && Pear.teardown) {
-  Pear.teardown(() => {
-    console.log('Cleaning up P2P connections...');
-    // Any cleanup logic can go here
-  });
-}

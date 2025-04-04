@@ -3,40 +3,40 @@ import crypto from 'hypercore-crypto' // Cryptographic functions for generating 
 import b4a from 'b4a'                 // Module for buffer-to-string and vice-versa conversions 
 const { teardown, updates } = Pear    // Functions for cleanup and updates
 
-console.log('Backend module loaded');
-
-// Create a Hyperswarm instance for P2P connections
+console.log('Backend module loaded - creating Hyperswarm instance');
 const swarm = new Hyperswarm()
 console.log('Hyperswarm instance created');
 
-teardown(() => swarm.destroy())
-
+teardown(() => {
+  console.log('TEARDOWN: Destroying Hyperswarm instance and all connections');
+  swarm.destroy();
+})
+updates(() => Pear.reload())
 
 let activeTopic = null
 let currentRoomId = null
-const connectedPeers = new Map()
+let swarmConnections = 0
 
 // API for the frontend to call
 export default {
   // Create a new chat room
   createRoom: async () => {
     console.log('BE Creating new room...');
-    //Generate a new random topic (32 byte string)
     const topicBuffer = crypto.randomBytes(32)
     const topic = await joinSwarm(topicBuffer)
     console.log('Room created with ID:', topic);
-
+  
     activeTopic = topicBuffer
     currentRoomId = topic
     return topic
   },
 
   // Join an existing chat room
-  joinRoom: async (roomId) => {
-    console.log('Joining room:', roomId);
+  joinRoom: async (roomId, stealth = false) => {
+    console.log(`Joining room: ${roomId} with stealth=${stealth}`);
     try {
       const topicBuffer = b4a.from(roomId, 'hex')
-      await joinSwarm(topicBuffer)
+      await joinSwarm(topicBuffer, stealth)
       console.log('Successfully joined room');
       return true
     } catch (err) {
@@ -50,7 +50,8 @@ export default {
     console.log('Sending message to peers:', message);
     // Send the message to all peers
     let sentCount = 0;
-    for (const peer of connectedPeers.values()) {
+    const peers = [...swarm.connections];
+    for (const peer of peers) {
       try {
         peer.write(message)
         sentCount++;
@@ -64,28 +65,35 @@ export default {
 
   // Get the current number of connected peers
   getPeerCount: () => {
-    return connectedPeers.size
+    return swarmConnections
   },
 
   // Get the current topic (room ID)
   getCurrentTopic: () => {
-    // return activeTopic ? b4a.toString(activeTopic, 'hex') : null
-    return currentRoomId ? currentRoomId : null
+    return activeTopic ? b4a.toString(activeTopic, 'hex') : null
   },
 
   // Leave the current room
   leaveRoom: async () => {
-    console.log('Leaving room');
-
+    console.log('Leaving room...')
+  
     if (activeTopic) {
-      swarm.leave(activeTopic)
-      connectedPeers.clear()
-      activeTopic = null
-      currentRoomId = null
-      console.log('Room left successfully');
-      return true
+      try {
+        await swarm.leave(activeTopic)        // stop DHT discovery
+        closeAllConnections()                 // close live sockets
+  
+        activeTopic = null
+        currentRoomId = null
+  
+        console.log('Room left successfully')
+        return true
+      } catch (err) {
+        console.error('Error leaving room:', err)
+        return false
+      }
     }
-    console.log('No active room to leave');
+  
+    console.log('No active room to leave')
     return false
   }
 }
@@ -98,25 +106,34 @@ export function onMessage(callback) {
   console.log('Message callback registered');
 }
 
-async function joinSwarm(topicBuffer) {
-  console.log('Joining swarm...');
+async function joinSwarm(topicBuffer, stealth = false) {
+  console.log('Joining swarm... (stealth mode:', stealth, ')')
 
+  // Clean up previous room
   if (activeTopic) {
-    console.log('Leaving previous room');
-    swarm.leave(activeTopic)
-    connectedPeers.clear()
+    console.log('Leaving previous topic')
+    try {
+      await swarm.leave(activeTopic)
+      closeAllConnections()
+    } catch (err) {
+      console.warn('Failed to fully leave previous topic:', err)
+    }
     activeTopic = null
     currentRoomId = null
   }
 
-  // Join the swarm with the topic. Setting both client/server to true means that this app can act as both.
-  console.log('Connecting to the DHT network...');
-  const discovery = swarm.join(topicBuffer, { client: true, server: true })
+  const options = stealth
+    ? { client: true, server: false }
+    : { client: true, server: true }
+
+  console.log('Connecting to the DHT network with options:', options)
+  const discovery = swarm.join(topicBuffer, options)
   await discovery.flushed()
-  console.log('Connected to the DHT network');
+  console.log('Connected to the DHT network')
 
   const topic = b4a.toString(topicBuffer, 'hex')
-  console.log('Return topic:', topic);
+  activeTopic = topicBuffer
+  currentRoomId = topic
   return topic
 }
 
@@ -129,12 +146,13 @@ swarm.on('connection', (peer) => {
   console.log(`New peer connected: ${name}`);
   
   // Store the connection
-  connectedPeers.set(id, peer)
+  // connectedPeers.set(id, peer)
   
   // Handle incoming messages
   peer.on('data', message => {
-    const messageStr = b4a.toString(message);
-    console.log(`Received message from ${name}: ${messageStr.substring(0, 30)}${messageStr.length > 30 ? '...' : ''}`);
+    // const messageStr = b4a.toString(message);
+    const messageStr = message
+    // console.log(`Received message from ${name}: ${messageStr}`);
     
     if (messageCallback) {
       messageCallback(name, messageStr)
@@ -143,26 +161,33 @@ swarm.on('connection', (peer) => {
   
   // Handle disconnections
   peer.on('close', () => {
-    console.log(`Peer disconnected: ${name}`);
-    connectedPeers.delete(id)
+    console.log(`Peer disconnected: ${name}`)
+    //TODO: callback if needed
   })
   
-  peer.on('error', e => {
-    console.error(`Connection error with peer ${name}: ${e}`)
-    connectedPeers.delete(id)
+  peer.on('error', (e) => {
+    const errorMsg = e?.message?.toLowerCase?.() || ''
+  
+    if (errorMsg.includes('connection reset by peer')) {
+      console.log(`Peer ${name} disconnected (left the room)`)
+    } else {
+      console.error(`Connection error with peer ${name}:`, e)
+    }
   })
 })
 
-// Update the connected peers count whenever the swarm changes
 swarm.on('update', () => {
-  console.log(`Peer count updated: ${connectedPeers.size} connected peers`);
-})
+  swarmConnections = swarm.connections.size
+  console.log(`Peer count updated: ${swarmConnections} connected peers`);
+}) 
 
-// Cleanup when the app is closed
-if (typeof Pear !== 'undefined' && Pear.teardown) {
-  console.log('Registering Pear teardown handler');
-  Pear.teardown(() => {
-    console.log('Destroying swarm connections');
-    swarm.destroy()
-  })
-} 
+function closeAllConnections() {
+  console.log('Closing all active peer connections...')
+  for (const conn of swarm.connections) {
+    try {
+      conn.destroy()
+    } catch (e) {
+      console.warn('Failed to destroy connection:', e)
+    }
+  }
+}
