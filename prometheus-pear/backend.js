@@ -5,6 +5,7 @@ const { teardown, updates } = Pear    // Functions for cleanup and updates
 
 import { Message, messageStore, MessageType } from './messages.js'
 import { userIdentity } from './identity.js'
+import { llmHost, llmClient } from './llm-host.js'
 
 class P2PChat {
   constructor() {
@@ -15,9 +16,14 @@ class P2PChat {
     this.swarmConnections = 0;
     this.messageCallback = null;
     this.peers = new Map(); // Store peer information
+    this.isLLMHost = false; // Whether this peer is hosting an LLM
     
     // Set up event listeners
     this._setupEventListeners();
+    
+    // Set message callbacks for LLM host and client
+    llmHost.setSendMessageCallback((peer, message) => this._sendToPeer(peer, message));
+    llmClient.setSendMessageCallback((peer, message) => this._sendToPeer(peer, message));
     
     // Handle Pear lifecycle
     teardown(() => {
@@ -37,14 +43,26 @@ class P2PChat {
       console.log(`New peer connected: ${name}`);
       
       // Store peer information 
-      this.peers.set(id, { 
+      const peerInfo = { 
+        id: id,
         connection: peer,
         name: name,
-        joinedAt: Date.now()
-      });
+        joinedAt: Date.now(),
+        isLLMHost: false // Initialize as not an LLM host
+      };
+      
+      this.peers.set(id, peerInfo);
       
       // Exchange identity information with new peer
       this._sendIdentity(peer);
+      
+      // If we're hosting an LLM, send host info to the new peer
+      if (this.isLLMHost) {
+        llmHost.broadcastHostInfo([peerInfo]);
+      } else {
+        // If we're not hosting, request host info from the peer
+        llmClient.requestHostInfo(peerInfo);
+      }
       
       // Add system message about the new peer
       if (this.currentRoomId) {
@@ -64,6 +82,15 @@ class P2PChat {
             return;
           }
           
+          // Handle LLM-related messages
+          if (data.type && data.type.startsWith('llm-')) {
+            if (this.isLLMHost) {
+              llmHost.processMessage(data, peerInfo);
+            }
+            llmClient.processMessage(data, peerInfo);
+            return;
+          }
+          
           // Parse as regular message
           const message = Message.fromSerialized(serializedMessage);
           
@@ -80,9 +107,23 @@ class P2PChat {
         } catch (err) {
           console.error('Error processing message:', err);
           
-          // Fallback for plain text messages
-          if (this.messageCallback) {
-            this.messageCallback(name, serializedMessage);
+          // Try handling as regular message if JSON parsing failed
+          try {
+            // For backward compatibility with plain text messages
+            const message = Message.fromSerialized(serializedMessage);
+            if (message.room) {
+              messageStore.addMessage(message);
+            }
+            
+            if (this.messageCallback) {
+              const senderName = message.sender.displayName || message.sender.id;
+              this.messageCallback(senderName, message.content);
+            }
+          } catch (e) {
+            // Fallback for plain text messages
+            if (this.messageCallback) {
+              this.messageCallback(name, serializedMessage);
+            }
           }
         }
       });
@@ -120,7 +161,29 @@ class P2PChat {
     // Listen for display name changes
     userIdentity.setOnDisplayNameChange((newName) => {
       this._broadcastIdentity();
+      
+      // Update LLM host info if we're hosting
+      if (this.isLLMHost) {
+        llmHost.broadcastHostInfo(Array.from(this.peers.values()));
+      }
     });
+  }
+  
+  /**
+   * Send data to a specific peer
+   * @private
+   */
+  _sendToPeer(peer, message) {
+    if (!peer || !peer.connection) return false;
+    
+    try {
+      const serializedData = typeof message === 'string' ? message : JSON.stringify(message);
+      peer.connection.write(serializedData);
+      return true;
+    } catch (err) {
+      console.error('Error sending data to peer:', err);
+      return false;
+    }
   }
   
   /**
@@ -273,7 +336,9 @@ class P2PChat {
       .map(peer => ({
         id: peer.name,
         displayName: peer.displayName || peer.name,
-        joinedAt: peer.joinedAt
+        joinedAt: peer.joinedAt,
+        isLLMHost: peer.isLLMHost,
+        hostInfo: peer.hostInfo
       }));
   }
   
@@ -380,6 +445,75 @@ class P2PChat {
   onNewMessage(callback) {
     return messageStore.addListener(callback);
   }
+  
+  /**
+   * Initialize this peer as an LLM host
+   * @param {string} providerName - LLM provider name
+   * @param {Object} providerConfig - Configuration for the provider
+   */
+  async initializeLLMHost(providerName, providerConfig) {
+    try {
+      const success = await llmHost.initialize(providerName, providerConfig);
+      
+      if (success) {
+        this.isLLMHost = true;
+        
+        // Broadcast host info to all peers
+        llmHost.broadcastHostInfo(Array.from(this.peers.values()));
+        
+        console.log('Successfully initialized as LLM host');
+        return true;
+      } else {
+        console.error('Failed to initialize LLM host');
+        return false;
+      }
+    } catch (err) {
+      console.error('Error initializing LLM host:', err);
+      return false;
+    }
+  }
+  
+  /**
+   * Get available LLM hosts from connected peers
+   */
+  getAvailableLLMHosts() {
+    return llmClient.getAvailableHosts();
+  }
+  
+  /**
+   * Send an LLM request to a host
+   * @param {Object} hostInfo - Host information
+   * @param {string} model - Model to use
+   * @param {Array} messages - Messages for the LLM
+   * @param {Object} options - Additional options
+   * @param {Function} onResponse - Callback for completion
+   * @param {Function} onChunk - Callback for streaming chunks
+   */
+  sendLLMRequest(hostInfo, model, messages, options = {}, onResponse, onChunk) {
+    // Find the host in our peer list
+    let host = null;
+    for (const [id, peer] of this.peers.entries()) {
+      if (id.startsWith(hostInfo.peerId) || peer.id === hostInfo.peerId) {
+        host = { peer };
+        break;
+      }
+    }
+    
+    if (!host) {
+      throw new Error('Host not found or not connected');
+    }
+    
+    return llmClient.sendLLMRequest(
+      host, 
+      model, 
+      messages, 
+      options, 
+      {
+        onResponse: onResponse || (() => {}),
+        onChunk: onChunk || (() => {})
+      }
+    );
+  }
 }
 
 // Create a singleton instance
@@ -387,6 +521,7 @@ const chatInstance = new P2PChat();
 
 // API for the frontend to call
 export default {
+  // P2P Chat methods
   createRoom: () => chatInstance.createRoom(),
   joinRoom: (roomId, stealth) => chatInstance.joinRoom(roomId, stealth),
   sendMessage: (message) => chatInstance.sendMessage(message),
@@ -397,7 +532,13 @@ export default {
   leaveRoom: () => chatInstance.leaveRoom(),
   onNewMessage: (callback) => chatInstance.onNewMessage(callback),
   setDisplayName: (name) => chatInstance.setDisplayName(name),
-  getUserIdentity: () => chatInstance.getUserIdentity()
+  getUserIdentity: () => chatInstance.getUserIdentity(),
+  
+  // LLM-related methods
+  initializeLLMHost: (provider, config) => chatInstance.initializeLLMHost(provider, config),
+  getAvailableLLMHosts: () => chatInstance.getAvailableLLMHosts(),
+  sendLLMRequest: (host, model, messages, options, onResponse, onChunk) => 
+    chatInstance.sendLLMRequest(host, model, messages, options, onResponse, onChunk)
 };
 
 // Export the message handler function

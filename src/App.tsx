@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import Layout from './components/Layout'
 import Welcome from './pages/Welcome'
 import Chat from './pages/Chat'
+import LLMChat from './pages/LLMChat'
 
 // Define app states
-type AppPage = 'welcome' | 'chat';
+type Page = 'welcome' | 'chat' | 'llmChat'
 
 function App() {
-  const [darkMode, setDarkMode] = useState(false)
-  const [currentPage, setCurrentPage] = useState<AppPage>('welcome')
+  const [darkMode, setDarkMode] = useState<boolean>(false)
+  const [currentPage, setCurrentPage] = useState<Page>('welcome')
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null)
   // const [currentRoomId, setCurrentRoomId] = useState<string | null>("1234567890")
 
@@ -32,37 +33,50 @@ function App() {
   }, [])
 
   const toggleDarkMode = () => {
-    const newDarkMode = !darkMode
-    setDarkMode(newDarkMode)
+    setDarkMode(prev => {
+      const newMode = !prev;
+      if (newMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+      return newMode;
+    });
+  }
+
+  // Navigation function
+  const navigateTo = (page: Page, roomId: string | null = null) => {
+    setCurrentPage(page);
     
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('theme', 'dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('theme', 'light')
+    if (roomId !== undefined) {
+      setCurrentRoomId(roomId);
     }
-  }
-
-  // Navigation functions
-  const navigateToChat = (roomId: string) => {
-    setCurrentRoomId(roomId);
-    setCurrentPage('chat');
-  }
-
-  const navigateToWelcome = () => {
-    setCurrentPage('welcome');
-    setCurrentRoomId(null);
   }
 
   // Render the correct component based on current state
   const renderCurrentPage = () => {
     switch (currentPage) {
-      case 'chat':
-        return <Chat roomId={currentRoomId} onLeaveRoom={navigateToWelcome} />;
       case 'welcome':
+        return <Welcome onJoinRoom={(roomId) => navigateTo('chat', roomId)} />;
+      case 'chat':
+        return (
+          <Chat 
+            roomId={currentRoomId} 
+            onLeaveRoom={() => navigateTo('welcome', null)} 
+            onStartLLMChat={() => navigateTo('llmChat')}
+          />
+        );
+      case 'llmChat':
+        return (
+          <LLMChat
+            roomId={currentRoomId}
+            onLeaveRoom={() => navigateTo('chat')}
+          />
+        );
       default:
-        return <Welcome onJoinRoom={navigateToChat} />;
+        return <Welcome onJoinRoom={(roomId) => navigateTo('chat', roomId)} />;
     }
   }
 
