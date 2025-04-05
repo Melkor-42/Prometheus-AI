@@ -64,7 +64,7 @@ declare global {
       getUserIdentity: () => UserIdentity;
       setDisplayName: (name: string) => string;
       
-      // LLM hosting (to be implemented)
+      // LLM hosting
       setLLMConfig?: (config: LLMConfig) => void;
       setHostStatus?: (isHost: boolean) => void;
       

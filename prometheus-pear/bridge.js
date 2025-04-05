@@ -11,8 +11,14 @@ function waitForPear() {
 
 function initializeBridge() {
   // Now we can safely import the backend
-  import('./backend.js').then(({ default: backend, onMessage }) => {
-    console.log('Backend imported successfully');
+  Promise.all([
+    import('./backend.js'),
+    import('./llm-service.js')
+  ]).then(([backendModule, llmServiceModule]) => {
+    console.log('Backend and LLM service imported successfully');
+    
+    const { default: backend, onMessage } = backendModule;
+    const { default: llmService } = llmServiceModule;
     
     // Expose the backend API to the window object so it can be accessed from the frontend
     window.ChatAPI = {
@@ -64,6 +70,15 @@ function initializeBridge() {
         return backend.getUserIdentity();
       },
       
+      // LLM hosting
+      setLLMConfig: (config) => {
+        return backend.setLLMConfig(config);
+      },
+      
+      setHostStatus: (isHost) => {
+        return backend.setHostStatus(isHost);
+      },
+      
       // Legacy message handler (for backwards compatibility)
       onMessage: (callback) => {
         onMessage((peerName, message) => {
@@ -71,6 +86,9 @@ function initializeBridge() {
         });
       }
     };
+    
+    // Expose the LLM service globally
+    window.llmService = llmService;
     
     // Also import the message and identity modules to make them available globally
     Promise.all([

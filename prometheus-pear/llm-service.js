@@ -57,7 +57,9 @@ class LLMProvider {
     constructor(config = {}) {
       super(config);
       this.apiKey = config.apiKey;
-      this.baseUrl = 'https://api.venice.ai/api/v1';
+    //   this.baseUrl = 'https://api.venice.ai/api/v1';
+      this.baseUrl = Pear.config.links.VeniceAPI;
+      console.log(this.baseUrl)
       
       if (!this.apiKey) {
         console.warn('Venice AI API key not provided');

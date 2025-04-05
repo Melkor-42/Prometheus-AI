@@ -21,6 +21,12 @@ export class UserIdentity {
   constructor() {
     // Try to load the user's identity from local storage
     this.loadIdentity();
+    
+    // Initialize host status
+    this.hostStatus = {
+      isHost: false,
+      llmConfig: null
+    };
   }
 
   /**
@@ -94,13 +100,47 @@ export class UserIdentity {
   }
 
   /**
+   * Register a callback for when the host status changes
+   * @param {Function} callback - Called when the host status changes
+   */
+  setOnHostStatusChange(callback) {
+    this.onHostStatusChange = callback;
+  }
+
+  /**
+   * Set the user's LLM host status
+   * @param {boolean} isHost - Whether the user is hosting an LLM
+   * @param {Object} llmConfig - LLM configuration (provider, model, apiKey)
+   */
+  setHostStatus(isHost, llmConfig = null) {
+    this.hostStatus = {
+      isHost: isHost,
+      llmConfig: llmConfig
+    };
+    
+    // Notify listeners that the host status has changed
+    if (this.onHostStatusChange) {
+      this.onHostStatusChange(this.hostStatus);
+    }
+  }
+
+  /**
+   * Get the user's host status
+   * @returns {Object} Host status
+   */
+  getHostStatus() {
+    return this.hostStatus;
+  }
+
+  /**
    * Get the user's full identity
    * @returns {Object} User identity with id and displayName
    */
   getIdentity() {
     return {
       id: this.userId,
-      displayName: this.displayName
+      displayName: this.displayName,
+      hostStatus: this.hostStatus
     };
   }
 }

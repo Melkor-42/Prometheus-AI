@@ -1,50 +1,47 @@
 {
-    "name": "prometheus",
-    "private": true,
-    "version": "0.0.0",
-    "type": "module",
-    "scripts": {
-      "dev": "pear run --dev ./index.html"
+  "name": "prometheus",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pear run --dev ./index.html"
+  },
+  "author": "Magrathea",
+  "pear": {
+    "type": "desktop",
+    "gui": {
+      "height": 600,
+      "width": 900,
+      "center": true,
+      "backgroundColor": "#1e293b",
+      "minWidth": 500,
+      "minHeight": 400
     },
-    "author": "Magrathea",
-    "pear": {
-      "type": "desktop",
-      "gui": {
-        "height": 600,
-        "width": 900,
-        "center": true,
-        "backgroundColor": "#1e293b",
-        "minWidth": 500,
-        "minHeight": 400
-      },
-      "links": [
-        "https://*",
-        "http://*",
-        "localhost:*"
-      ]
-    },
-    "dependencies": {
-      "react": "^19.0.0",
-      "react-dom": "^19.0.0",
-      "hyperswarm": "^4.11.1",
-      "hypercore-crypto": "^3.4.0",
-      "b4a": "^1.6.4"
-    },
-    "devDependencies": {
-      "@eslint/js": "^9.21.0",
-      "@types/react": "^19.0.10",
-      "@types/react-dom": "^19.0.4",
-      "@vitejs/plugin-react": "^4.3.4",
-      "autoprefixer": "^10.4.21",
-      "eslint": "^9.21.0",
-      "eslint-plugin-react-hooks": "^5.1.0",
-      "eslint-plugin-react-refresh": "^0.4.19",
-      "globals": "^15.15.0",
-      "postcss": "^8.5.3",
-      "typescript": "~5.7.2",
-      "tailwindcss": "^3.4.17",
-      "typescript-eslint": "^8.24.1",
-      "vite": "^6.2.0"
+    "links": {
+      "VeniceAPI": "https://api.venice.ai/api/v1"
     }
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "hyperswarm": "^4.11.1",
+    "hypercore-crypto": "^3.4.0",
+    "b4a": "^1.6.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.21.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^15.15.0",
+    "postcss": "^8.5.3",
+    "typescript": "~5.7.2",
+    "tailwindcss": "^3.4.17",
+    "typescript-eslint": "^8.24.1",
+    "vite": "^6.2.0"
   }
-  
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserIdentity } from '../types/chat';
+import { UserIdentity, LLMConfig } from '../types/chat';
 import CopyIcon from '../assets/copy.svg?react';
 import CopySuccessIcon from '../assets/copy-success.svg?react';
 
@@ -126,28 +126,36 @@ const HostLLM: React.FC<HostLLMProps> = ({ roomId, onLeaveRoom, onContinueToChat
       }
 
       // Create the LLM provider configuration
-      const llmConfig = {
+      const llmConfig: LLMConfig = {
         provider: selectedProvider,
         model: model,
         apiKey: apiKey
       };
 
-      // Add the LLM config and host status to the user's identity
-      // This would be a custom extension to the ChatAPI that needs to be implemented
-      // For now, it's a placeholder for the future implementation
-      console.log('Setting up LLM hosting with config:', llmConfig);
-
-      // Create LLM provider using llmService
-      // This would be exposed via window.llmService in the future
-      // For now, it's a placeholder
-      console.log('Creating LLM provider');
-
+      // Set up LLM hosting via the ChatAPI
+      if (!window.ChatAPI.setLLMConfig) {
+        throw new Error('LLM hosting is not supported in this version');
+      }
+      
+      try {
+        // Configure the LLM provider
+        window.ChatAPI.setLLMConfig(llmConfig);
+        console.log('Successfully configured LLM hosting');
+      } catch (configError) {
+        throw new Error(`Failed to initialize LLM provider: ${(configError as Error).message}`);
+      }
+      
       // Navigate to the chat page
       onContinueToChat(roomTopic);
     } catch (error) {
       console.error('Failed to start hosting:', error);
       setError((error as Error).message);
       setIsConnecting(false);
+      
+      // Reset host status in case of error
+      if (window.ChatAPI.setHostStatus) {
+        window.ChatAPI.setHostStatus(false);
+      }
     }
   };
 
@@ -259,16 +267,13 @@ const HostLLM: React.FC<HostLLMProps> = ({ roomId, onLeaveRoom, onContinueToChat
                 <option value="">Select a model</option>
                 {selectedProvider === 'veniceai' && (
                   <>
-                    <option value="venice-1">Venice 1</option>
-                    <option value="venice-2">Venice 2</option>
-                    <option value="venice-3">Venice 3</option>
+                    <option value="llama-3.3-70b">llama-3.3-70b</option>
+                    <option value="llama-3.2-3b">llama-3.2-3b</option>
                   </>
                 )}
                 {selectedProvider === 'mock' && (
                   <>
-                    <option value="mock-small">Mock Small</option>
-                    <option value="mock-medium">Mock Medium</option>
-                    <option value="mock-large">Mock Large</option>
+                    <option value="llama-3.3-70b">llama-3.3-70b</option>
                   </>
                 )}
               </select>
