@@ -147,18 +147,18 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
       setMessages(prev => [...prev, newMessage]);
     });
 
-    // Backward compatibility - legacy message listener
-    window.ChatAPI.onMessage((sender, content) => {
-      console.log(`Received legacy message from ${sender}: ${content}`);
-      const newMessage: Message = {
-        id: uuidv4(),
-        sender,
-        content,
-        timestamp: Date.now(),
-        isMe: false,
-      };
-      setMessages(prev => [...prev, newMessage]);
-    });
+    // // Backward compatibility - legacy message listener
+    // window.ChatAPI.onMessage((sender, content) => {
+    //   console.log(`Received legacy message from ${sender}: ${content}`);
+    //   const newMessage: Message = {
+    //     id: uuidv4(),
+    //     sender,
+    //     content,
+    //     timestamp: Date.now(),
+    //     isMe: false,
+    //   };
+    //   setMessages(prev => [...prev, newMessage]);
+    // });
 
     // Setup peer info updater
     const peerInfoInterval = setInterval(() => {
