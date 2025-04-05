@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import Layout from './components/Layout'
 import Welcome from './pages/Welcome'
 import Chat from './pages/Chat'
+import HostLLM from './pages/HostLLM'
 
 // Define app states
-type AppPage = 'welcome' | 'chat';
+type AppPage = 'welcome' | 'chat' | 'hostLLM';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false)
@@ -50,6 +51,11 @@ function App() {
     setCurrentPage('chat');
   }
 
+  const navigateToHostLLM = (roomId: string) => {
+    setCurrentRoomId(roomId);
+    setCurrentPage('hostLLM');
+  }
+
   const navigateToWelcome = () => {
     setCurrentPage('welcome');
     setCurrentRoomId(null);
@@ -60,9 +66,17 @@ function App() {
     switch (currentPage) {
       case 'chat':
         return <Chat roomId={currentRoomId} onLeaveRoom={navigateToWelcome} />;
+      case 'hostLLM':
+        return (
+          <HostLLM 
+            roomId={currentRoomId} 
+            onLeaveRoom={navigateToWelcome}
+            onContinueToChat={(roomId) => navigateToChat(roomId)}
+          />
+        );
       case 'welcome':
       default:
-        return <Welcome onJoinRoom={navigateToChat} />;
+        return <Welcome onJoinRoom={navigateToChat} onCreateHostRoom={navigateToHostLLM} />;
     }
   }
 

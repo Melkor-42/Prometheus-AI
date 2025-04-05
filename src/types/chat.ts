@@ -24,9 +24,21 @@ export interface Room {
   peerCount: number;
 }
 
+export interface LLMConfig {
+  provider: string;
+  model: string;
+  apiKey?: string;
+}
+
+export interface HostStatus {
+  isHost: boolean;
+  llmConfig?: LLMConfig;
+}
+
 export interface UserIdentity {
   id: string;
   displayName: string;
+  hostStatus?: HostStatus;
 }
 
 // Define the global ChatAPI interface
@@ -52,6 +64,10 @@ declare global {
       getUserIdentity: () => UserIdentity;
       setDisplayName: (name: string) => string;
       
+      // LLM hosting (to be implemented)
+      setLLMConfig?: (config: LLMConfig) => void;
+      setHostStatus?: (isHost: boolean) => void;
+      
       // Legacy
       onMessage: (callback: (peerName: string, message: string) => void) => void;
     };
@@ -64,5 +80,6 @@ declare global {
       IMAGE: string;
     };
     userIdentity: any;
+    llmService?: any;
   }
 } 

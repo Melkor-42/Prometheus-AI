@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 
 interface WelcomeProps {
   onJoinRoom: (roomId: string) => void;
+  onCreateHostRoom: (roomId: string) => void;
 }
 
-const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom }) => {
+const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom, onCreateHostRoom }) => {
   const [joinRoomId, setJoinRoomId] = useState('');
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,6 +66,29 @@ const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom }) => {
     } catch (err) {
       console.error('Failed to create room:', err);
       setError('Failed to create room. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateHostRoom = async () => {
+    if (!apiReady) {
+      setError('Chat API not yet initialized. Please wait a moment and try again.');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Creating host room...');
+      // Create a new room using the ChatAPI
+      const roomId = await window.ChatAPI.createRoom();
+      console.log('Host room created:', roomId);
+      // Navigate to the host LLM page using the prop function
+      onCreateHostRoom(roomId);
+    } catch (err) {
+      console.error('Failed to create host room:', err);
+      setError('Failed to create host room. Please try again.');
       setIsLoading(false);
     }
   };
@@ -130,6 +154,14 @@ const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom }) => {
           className="w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
         >
           {isLoading ? 'Creating...' : 'Create New Room'}
+        </button>
+        
+        <button
+          onClick={handleCreateHostRoom}
+          disabled={isLoading || !apiReady}
+          className="w-full py-3 px-6 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
+        >
+          {isLoading ? 'Creating...' : 'Host LLM Room'}
         </button>
         
         {!showJoinInput ? (
