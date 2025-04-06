@@ -3,9 +3,10 @@ import Layout from './components/Layout'
 import Welcome from './pages/Welcome'
 import Chat from './pages/Chat'
 import HostLLM from './pages/HostLLM'
+import Dashboard from './pages/Dashboard'
 
 // Define app states
-type AppPage = 'welcome' | 'chat' | 'hostLLM';
+type AppPage = 'welcome' | 'chat' | 'hostLLM' | 'dashboard';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false)
@@ -27,7 +28,19 @@ function App() {
       const existingRoom = window.ChatAPI.getCurrentTopic();
       if (existingRoom) {
         setCurrentRoomId(existingRoom);
-        setCurrentPage('chat');
+        
+        // Check if we're a host, navigate to dashboard instead of chat
+        try {
+          const identity = window.ChatAPI.getUserIdentity();
+          if (identity.hostStatus?.isHost) {
+            setCurrentPage('dashboard');
+          } else {
+            setCurrentPage('chat');
+          }
+        } catch (error) {
+          console.error('Failed to check host status:', error);
+          setCurrentPage('chat');
+        }
       }
     }
   }, [])
@@ -56,6 +69,11 @@ function App() {
     setCurrentPage('hostLLM');
   }
 
+  const navigateToDashboard = (roomId: string) => {
+    setCurrentRoomId(roomId);
+    setCurrentPage('dashboard');
+  }
+
   const navigateToWelcome = () => {
     setCurrentPage('welcome');
     setCurrentRoomId(null);
@@ -64,6 +82,14 @@ function App() {
   // Render the correct component based on current state
   const renderCurrentPage = () => {
     switch (currentPage) {
+      case 'dashboard':
+        return (
+          <Dashboard 
+            roomId={currentRoomId} 
+            onLeaveRoom={navigateToWelcome}
+            onNavigateToChat={navigateToChat}
+          />
+        );
       case 'chat':
         return <Chat roomId={currentRoomId} onLeaveRoom={navigateToWelcome} />;
       case 'hostLLM':
@@ -71,7 +97,7 @@ function App() {
           <HostLLM 
             roomId={currentRoomId} 
             onLeaveRoom={navigateToWelcome}
-            onContinueToChat={(roomId) => navigateToChat(roomId)}
+            onContinueToChat={(roomId) => navigateToDashboard(roomId)}
           />
         );
       case 'welcome':

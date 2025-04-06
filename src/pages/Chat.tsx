@@ -333,7 +333,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
       </div>
       
       {/* Messages area - make only this part scrollable */}
-      <div className="flex-grow overflow-y-auto p-4 bg-white dark:bg-gray-900 space-y-3">
+      <div className="flex-grow overflow-y-auto p-4 bg-white dark:bg-gray-900 space-y-3 custom-scrollbar scrollbar-hide-inactive">
         {messages.length === 0 ? (
           <p className="text-center text-gray-500 dark:text-gray-400 italic">
             No messages yet. Start the conversation!

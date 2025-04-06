@@ -89,4 +89,3 @@ This project is licensed under [add your license] - see the LICENSE file for det
 ## Acknowledgments
 
 - [Holepunch](https://holepunch.to/) for the P2P infrastructure
-- All contributors and testers

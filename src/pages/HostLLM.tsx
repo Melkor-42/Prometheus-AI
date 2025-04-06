@@ -145,7 +145,7 @@ const HostLLM: React.FC<HostLLMProps> = ({ roomId, onLeaveRoom, onContinueToChat
         throw new Error(`Failed to initialize LLM provider: ${(configError as Error).message}`);
       }
       
-      // Navigate to the chat page
+      // Navigate to the dashboard page
       onContinueToChat(roomTopic);
     } catch (error) {
       console.error('Failed to start hosting:', error);
@@ -296,13 +296,13 @@ const HostLLM: React.FC<HostLLMProps> = ({ roomId, onLeaveRoom, onContinueToChat
             )}
             
             {/* Submit button */}
-            <div className="pt-4">
-              <button
-                type="button"
+            <div className="mt-6">
+              <button 
                 onClick={handleStartHosting}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors duration-200 flex items-center justify-center"
+                disabled={isConnecting}
+                className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-md transition"
               >
-                Start Hosting
+                {isConnecting ? 'Setting Up...' : 'Start Hosting LLM & Go to Dashboard'}
               </button>
             </div>
           </form>
