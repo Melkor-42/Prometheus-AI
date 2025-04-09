@@ -71,7 +71,6 @@ class P2PChat {
           
           // Store message if it has a valid room
           if (message.room) {
-            messageStore.addMessage(message);
             
             // Process message with LLM if we are the host
             const hostStatus = userIdentity.getHostStatus();
@@ -80,21 +79,12 @@ class P2PChat {
               if (message.type !== MessageType.SYSTEM && message.sender.id !== userIdentity.getUserId()) {
                 this._processWithLLM(message);
               }
+            } else{
+              messageStore.addMessage(message);
             }
-          }
-          
-          // Call legacy message callback if set
-          if (this.messageCallback) {
-            const senderName = message.sender.displayName || message.sender.id;
-            this.messageCallback(senderName, message.content);
           }
         } catch (err) {
           console.error('Error processing message:', err);
-          
-          // Fallback for plain text messages
-          if (this.messageCallback) {
-            this.messageCallback(name, serializedMessage);
-          }
         }
       });
       
