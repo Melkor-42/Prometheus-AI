@@ -3,6 +3,7 @@ import { Message, StructuredMessage, UserIdentity } from '../types/chat';
 import { v4 as uuidv4 } from 'uuid';
 import CopyIcon from '../assets/copy.svg?react';
 import CopySuccessIcon from '../assets/copy-success.svg?react';
+import ReactMarkdown from 'react-markdown';
 
 interface ChatProps {
   roomId: string | null;
@@ -342,20 +343,26 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
           messages.map(msg => (
             <div 
               key={msg.id}
-              className={`p-3 rounded-lg max-w-[80%] ${
+              className={`${
                 msg.type === 'system'
-                  ? 'mx-auto bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-center max-w-[90%] text-sm italic'
+                  ? 'mx-auto bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-center max-w-[90%] text-sm italic p-3 rounded-lg'
                   : msg.isMe 
-                    ? 'ml-auto bg-blue-600 text-white' 
-                    : 'mr-auto bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+                    ? 'ml-auto max-w-[80%] p-3 rounded-lg bg-blue-600 text-white'
+                    : 'mr-auto max-w-[80%] p-3'
               }`}
             >
               {msg.type !== 'system' && (
-                <div className="font-semibold text-sm">
+                <div className="font-semibold text-sm mb-1">
                   {msg.isMe ? userIdentity?.displayName || 'You' : msg.sender}
                 </div>
               )}
-              <div>{msg.content}</div>
+              {msg.isMe ? (
+                <div>{msg.content}</div>
+              ) : (
+                <div className="prose dark:prose-invert max-w-none">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              )}
               {msg.type !== 'system' && (
                 <div className="text-xs opacity-70 text-right mt-1">
                   {new Date(msg.timestamp).toLocaleTimeString()}
