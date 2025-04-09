@@ -9,6 +9,13 @@ export const MessageType = {
   IMAGE: 'image'
 };
 
+// Message roles
+export const MessageRole = {
+  USER: 'user',
+  ASSISTANT: 'assistant',
+  SYSTEM: 'system'
+};
+
 /**
  * Creates a structured message object
  */
@@ -16,14 +23,17 @@ export class Message {
   /**
    * Create a new message
    * @param {string} content - The message content
+   * @param {string} role - Message role (user/assistant/system)
    * @param {string} senderId - Sender's ID (peer name)
    * @param {string} type - Message type (default: text)
    * @param {string} roomId - Room ID where the message was sent
    * @param {string} displayName - Sender's display name (optional)
+   * @param {string} reasoning_content - Assistant's reasoning (optional)
    */
-  constructor(content, senderId, type = MessageType.TEXT, roomId = null, displayName = null) {
+  constructor(content, role, senderId, type = MessageType.TEXT, roomId = null, displayName = null, reasoning_content = null) {
     this.id = Date.now().toString(36) + Math.random().toString(36).substring(2);
     this.content = content;
+    this.role = role;
     this.sender = {
       id: senderId,
       displayName: displayName || senderId
@@ -31,6 +41,7 @@ export class Message {
     this.timestamp = Date.now();
     this.type = type;
     this.room = roomId;
+    this.reasoning_content = reasoning_content;
   }
 
   /**
@@ -39,11 +50,13 @@ export class Message {
   serialize() {
     return JSON.stringify({
       id: this.id,
+      role: this.role,
       content: this.content,
       sender: this.sender,
       timestamp: this.timestamp,
       type: this.type,
-      room: this.room
+      room: this.room,
+      reasoning_content: this.reasoning_content
     });
   }
 
@@ -56,28 +69,19 @@ export class Message {
     try {
       const data = JSON.parse(serialized);
       const message = new Message(
-        data.content, 
-        data.sender.id, 
-        data.type, 
+        data.content,
+        data.role,
+        data.sender.senderId,
+        data.type,
         data.room,
-        data.sender.displayName
+        data.sender.displayName,
+        data.reasoning_content
       );
       message.id = data.id;
       message.timestamp = data.timestamp;
-      
-      // Ensure sender has the proper structure
-      if (data.sender && typeof data.sender === 'object') {
-        message.sender = {
-          id: data.sender.id || 'unknown',
-          displayName: data.sender.displayName || data.sender.id || 'unknown'
-        };
-      }
-      
       return message;
     } catch (err) {
       console.error('Failed to parse message:', err);
-      // Fallback for plain text messages
-      return new Message(serialized, 'unknown', MessageType.TEXT);
     }
   }
 
@@ -88,7 +92,7 @@ export class Message {
    * @returns {Message} System message
    */
   static system(content, roomId = null) {
-    return new Message(content, 'system', MessageType.SYSTEM, roomId, 'System');
+    return new Message(content, MessageRole.SYSTEM, 'system', MessageType.SYSTEM, roomId, 'System');
   }
 }
 
@@ -127,6 +131,7 @@ export class MessageStore {
   getMessages(roomId) {
     return this.messages.get(roomId) || [];
   }
+
 
   /**
    * Clear messages for a room

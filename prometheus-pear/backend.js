@@ -3,7 +3,7 @@ import crypto from 'hypercore-crypto' // Cryptographic functions for generating 
 import b4a from 'b4a'                 // Module for buffer-to-string and vice-versa conversions 
 const { teardown, updates } = Pear    // Functions for cleanup and updates
 
-import { Message, messageStore, MessageType } from './messages.js'
+import { Message, messageStore, MessageType, MessageRole } from './messages.js'
 import { userIdentity } from './identity.js'
 import llmService from './llm-service.js'
 
@@ -49,10 +49,10 @@ class P2PChat {
       this._sendIdentity(peer);
       
       // Add system message about the new peer
-      if (this.currentRoomId) {
-        const joinMessage = Message.system(`User ${name} joined the chat`, this.currentRoomId);
-        messageStore.addMessage(joinMessage);
-      }
+      // if (this.currentRoomId) {
+      //   const joinMessage = Message.system(`User ${name} joined the chat`, this.currentRoomId);
+      //   messageStore.addMessage(joinMessage);
+      // }
       
       // Handle incoming messages
       peer.on('data', serializedMessage => {
@@ -65,23 +65,14 @@ class P2PChat {
             this._handleIdentityMessage(id, data);
             return;
           }
-          
-          // Parse as regular message
-          const message = Message.fromSerialized(serializedMessage);
-          
-          // Store message if it has a valid room
-          if (message.room) {
-            
-            // Process message with LLM if we are the host
-            const hostStatus = userIdentity.getHostStatus();
-            if (hostStatus && hostStatus.isHost && this.llmProvider) {
-              // Only process messages that are not from the system or ourselves
-              if (message.type !== MessageType.SYSTEM && message.sender.id !== userIdentity.getUserId()) {
-                this._processWithLLM(message);
-              }
-            } else{
-              messageStore.addMessage(message);
-            }
+
+          // Process message with LLM if we are the host
+          const hostStatus = userIdentity.getHostStatus();
+          if (hostStatus && hostStatus.isHost && this.llmProvider) {
+            this._processWithLLM(data);
+          } else{
+            const message = Message.fromSerialized(serializedMessage);
+            messageStore.addMessage(message);
           }
         } catch (err) {
           console.error('Error processing message:', err);
@@ -107,7 +98,7 @@ class P2PChat {
         // Add system message about peer leaving
         if (this.currentRoomId) {
           const displayName = peerInfo?.displayName || name;
-          const leaveMessage = Message.system(`User ${displayName} left the chat`, this.currentRoomId);
+          // const leaveMessage = Message.system(`User ${displayName} left the chat`, this.currentRoomId);
           messageStore.addMessage(leaveMessage);
         }
       });
@@ -194,30 +185,26 @@ class P2PChat {
    * Process a message with the LLM and send the response
    * @private
    */
-  async _processWithLLM(message) {
+  async _processWithLLM(messages) {
     if (!this.llmProvider) return;
-    
+
     try {
-      console.log(`Processing message with LLM: ${message.content}`);
-      
-      // Format the message for the LLM
-      const hostStatus = userIdentity.getHostStatus();
-      const messages = [
-        { role: 'system', content: 'You are a helpful assistant in a group chat. Respond to the user\'s message in a helpful and concise manner.' },
-        { role: 'user', content: message.content }
-      ];
-      
-      // Call the LLM with the message
+      // Call the LLM with the messages
+      const hostStatus = userIdentity.getHostStatus()
+      const model = hostStatus.llmConfig.model
       const response = await this.llmProvider.chatCompletion(
-        hostStatus.llmConfig.model,
+        model,
         messages,
         { temperature: 0.7, max_tokens: 500 }
       );
       
       // Extract the response text
       let responseText = '';
+      let reasoningContent = null;
+      
       if (response.choices && response.choices.length > 0) {
         responseText = response.choices[0].message.content;
+        reasoningContent = response.choices[0].message.reasoning_content;
       } else {
         responseText = 'Sorry, I could not generate a response.';
       }
@@ -228,15 +215,14 @@ class P2PChat {
       
       const llmResponseMessage = new Message(
         responseText,
+        MessageRole.ASSISTANT,
         identity.id,
         MessageType.TEXT,
         this.currentRoomId,
-        botName
+        botName,
+        reasoningContent
       );
-      
-      // Add to local message store
-      messageStore.addMessage(llmResponseMessage);
-      
+
       // Send to all peers
       const serialized = llmResponseMessage.serialize();
       for (const [_, peerInfo] of this.peers) {
@@ -271,8 +257,8 @@ class P2PChat {
     
     // Clear previous room messages and add welcome message
     messageStore.clearRoom(topic);
-    const welcomeMessage = Message.system('Room created. Waiting for peers to join...', topic);
-    messageStore.addMessage(welcomeMessage);
+    // const welcomeMessage = Message.system('Room created. Waiting for peers to join...', topic);
+    // messageStore.addMessage(welcomeMessage);
     
     return topic;
   }
@@ -286,8 +272,8 @@ class P2PChat {
       
       // Clear previous room messages and add joined message
       messageStore.clearRoom(roomId);
-      const joinedMessage = Message.system(`Joined room ${roomId}`, roomId);
-      messageStore.addMessage(joinedMessage);
+      // const joinedMessage = Message.system(`Joined room ${roomId}`, roomId);
+      // messageStore.addMessage(joinedMessage);
       
       return true;
     } catch (err) {
@@ -302,29 +288,31 @@ class P2PChat {
       return false;
     }
     
-    // Get current user identity
+    // Get current user identity and host status
     const identity = userIdentity.getIdentity();
-    
+    const hostStatus = userIdentity.getHostStatus();
+
     // Create structured message
     const message = new Message(
-      content, 
+      content,
+      MessageRole.USER,
       identity.id, 
       MessageType.TEXT,
       this.currentRoomId,
       identity.displayName
     );
-    
+
     // Add to local message store
     messageStore.addMessage(message);
-    
-    // Serialize and send to peers
-    const serialized = message.serialize();
-    console.log('Sending message to peers:', serialized);
+
+    // Get messages to send based on host status
+    const conversation = messageStore.getMessages(this.currentRoomId)
     
     // Send to all peers
     let sentCount = 0;
     for (const [_, peerInfo] of this.peers) {
       try {
+        const serialized = JSON.stringify(conversation);
         peerInfo.connection.write(serialized);
         sentCount++;
       } catch (err) {
@@ -393,13 +381,13 @@ class P2PChat {
       userIdentity.setHostStatus(true, config);
       
       // Add system message about hosting
-      if (this.currentRoomId) {
-        const hostMessage = Message.system(
-          `LLM hosting activated with ${config.provider} model: ${config.model}`,
-          this.currentRoomId
-        );
-        messageStore.addMessage(hostMessage);
-      }
+      // if (this.currentRoomId) {
+      //   const hostMessage = Message.system(
+      //     `LLM hosting activated with ${config.provider} model: ${config.model}`,
+      //     this.currentRoomId
+      //   );
+      //   messageStore.addMessage(hostMessage);
+      // }
       
       console.log('LLM provider created and host status updated');
       return true;
@@ -422,13 +410,13 @@ class P2PChat {
       userIdentity.setHostStatus(false);
       
       // Add system message about disabling hosting
-      if (this.currentRoomId) {
-        const hostMessage = Message.system(
-          'LLM hosting deactivated',
-          this.currentRoomId
-        );
-        messageStore.addMessage(hostMessage);
-      }
+      // if (this.currentRoomId) {
+      //   const hostMessage = Message.system(
+      //     'LLM hosting deactivated',
+      //     this.currentRoomId
+      //   );
+      //   messageStore.addMessage(hostMessage);
+      // }
     }
     
     return userIdentity.getHostStatus();
@@ -453,10 +441,10 @@ class P2PChat {
         userIdentity.setHostStatus(false);
         
         // Add left message to the room we're leaving
-        if (previousRoom) {
-          const leftMessage = Message.system('You left the room', previousRoom);
-          messageStore.addMessage(leftMessage);
-        }
+        // if (previousRoom) {
+        //   const leftMessage = Message.system('You left the room', previousRoom);
+        //   messageStore.addMessage(leftMessage);
+        // }
   
         console.log('Room left successfully');
         return true;
