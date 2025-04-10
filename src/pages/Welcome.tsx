@@ -47,29 +47,6 @@ const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom, onCreateHostRoom }) => {
     }
   }, []);
 
-  const handleCreateRoom = async () => {
-    if (!apiReady) {
-      setError('Chat API not yet initialized. Please wait a moment and try again.');
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      console.log('Creating room...');
-      // Create a new room using the ChatAPI
-      const roomId = await window.ChatAPI.createRoom();
-      console.log('Room created:', roomId);
-      // Navigate to the chat room using the prop function
-      onJoinRoom(roomId);
-    } catch (err) {
-      console.error('Failed to create room:', err);
-      setError('Failed to create room. Please try again.');
-      setIsLoading(false);
-    }
-  };
-
   const handleCreateHostRoom = async () => {
     if (!apiReady) {
       setError('Chat API not yet initialized. Please wait a moment and try again.');
@@ -129,10 +106,10 @@ const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom, onCreateHostRoom }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full overflow-auto">
       <h1 className="text-4xl font-bold my-4 text-gray-900 dark:text-white">
-        Prometheus P2P Chat
+        Prometheus P2P AI Chat
       </h1>
       <p className="text-xl text-gray-700 dark:text-gray-300 mb-8">
-        Secure, decentralized peer-to-peer chat
+        Secure, decentralized peer-to-peer AI chat
       </p>
       
       {!apiReady && (
@@ -149,19 +126,11 @@ const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom, onCreateHostRoom }) => {
       
       <div className="space-y-4 w-full max-w-sm">
         <button
-          onClick={handleCreateRoom}
+          onClick={handleCreateHostRoom}
           disabled={isLoading || !apiReady}
           className="w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
         >
-          {isLoading ? 'Creating...' : 'Create New Room'}
-        </button>
-        
-        <button
-          onClick={handleCreateHostRoom}
-          disabled={isLoading || !apiReady}
-          className="w-full py-3 px-6 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
-        >
-          {isLoading ? 'Creating...' : 'Host LLM Room'}
+          {isLoading ? 'Creating...' : 'Host LLM'}
         </button>
         
         {!showJoinInput ? (

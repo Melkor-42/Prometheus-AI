@@ -4,6 +4,7 @@ import Welcome from './pages/Welcome'
 import Chat from './pages/Chat'
 import HostLLM from './pages/HostLLM'
 import Dashboard from './pages/Dashboard'
+import { UserIdentity } from './types/chat'
 
 // Define app states
 type AppPage = 'welcome' | 'chat' | 'hostLLM' | 'dashboard';
@@ -12,7 +13,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(false)
   const [currentPage, setCurrentPage] = useState<AppPage>('welcome')
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null)
-  // const [currentRoomId, setCurrentRoomId] = useState<string | null>("1234567890")
+  const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
@@ -32,6 +33,7 @@ function App() {
         // Check if we're a host, navigate to dashboard instead of chat
         try {
           const identity = window.ChatAPI.getUserIdentity();
+          setUserIdentity(identity);
           if (identity.hostStatus?.isHost) {
             setCurrentPage('dashboard');
           } else {
@@ -87,11 +89,14 @@ function App() {
           <Dashboard 
             roomId={currentRoomId} 
             onLeaveRoom={navigateToWelcome}
-            onNavigateToChat={navigateToChat}
           />
         );
       case 'chat':
-        return <Chat roomId={currentRoomId} onLeaveRoom={navigateToWelcome} />;
+        return (
+          <div className="flex h-full">
+            <Chat roomId={currentRoomId} onLeaveRoom={navigateToWelcome} />
+          </div>
+        );
       case 'hostLLM':
         return (
           <HostLLM 

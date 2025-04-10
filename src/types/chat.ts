@@ -4,19 +4,21 @@ export interface Message {
   content: string;
   timestamp: number;
   isMe: boolean;
-  type?: string;
+  type: string;
 }
 
 export interface StructuredMessage {
   id: string;
   content: string;
+  role: string;
   sender: {
     id: string;
     displayName: string;
   };
   timestamp: number;
   type: string;
-  room: string | null;
+  chatId: string;
+  reasoning_content?: string;
 }
 
 export interface Room {
@@ -38,39 +40,43 @@ export interface HostStatus {
 export interface UserIdentity {
   id: string;
   displayName: string;
-  hostStatus?: HostStatus;
+  hostStatus?: {
+    isHost: boolean;
+    llmConfig?: {
+      provider: string;
+      model: string;
+      apiKey: string;
+    };
+  };
+}
+
+export interface ChatAPI {
+  createRoom: () => Promise<string>;
+  joinRoom: (topicHex: string) => Promise<boolean>;
+  leaveRoom: () => Promise<boolean>;
+  sendMessage: (message: string) => boolean;
+  getPeerCount: () => number;
+  getCurrentTopic: () => string | null;
+  getPeers: () => Array<{id: string, displayName: string, joinedAt: number}>;
+  getMessages: (roomId?: string) => StructuredMessage[];
+  onNewMessage: (callback: (message: StructuredMessage) => void) => () => void;
+  setDisplayName: (name: string) => string;
+  getUserIdentity: () => UserIdentity;
+  setLLMConfig: (config: {provider: string, model: string, apiKey: string}) => boolean;
+  setHostStatus: (isHost: boolean) => {isHost: boolean, llmConfig?: {provider: string, model: string, apiKey: string}};
+  onMessage: (callback: (peerName: string, message: string) => void) => void;
+  
+  // New chat management methods
+  getChats: () => Promise<Map<string, Message[]>>;
+  getChat: (chatId: string) => Promise<Message[]>;
+  createChat: () => Promise<string>;
+  deleteChat: (chatId: string) => Promise<void>;
 }
 
 // Define the global ChatAPI interface
 declare global {
   interface Window {
-    ChatAPI: {
-      // Room management
-      createRoom: () => Promise<string>;
-      joinRoom: (topicHex: string) => Promise<boolean>;
-      leaveRoom: () => Promise<boolean>;
-      
-      // Message handling
-      sendMessage: (message: string) => boolean;
-      getMessages: (roomId?: string) => StructuredMessage[];
-      onNewMessage: (callback: (message: StructuredMessage) => void) => Function;
-      
-      // Status information
-      getPeerCount: () => number;
-      getCurrentTopic: () => string | null;
-      getPeers: () => Array<{id: string, displayName: string, joinedAt: number}>;
-      
-      // User identity
-      getUserIdentity: () => UserIdentity;
-      setDisplayName: (name: string) => string;
-      
-      // LLM hosting
-      setLLMConfig?: (config: LLMConfig) => void;
-      setHostStatus?: (isHost: boolean) => void;
-      
-      // Legacy
-      onMessage: (callback: (peerName: string, message: string) => void) => void;
-    };
+    ChatAPI: ChatAPI;
     
     // Global message classes
     ChatMessage: any;

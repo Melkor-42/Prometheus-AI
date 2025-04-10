@@ -17,6 +17,7 @@ class P2PChat {
     this.messageCallback = null;
     this.peers = new Map(); // Store peer information
     this.llmProvider = null; // LLM provider instance
+    this.chats = new Map(); // Store chat information
     
     // Set up event listeners
     this._setupEventListeners();
@@ -256,7 +257,7 @@ class P2PChat {
     this.currentRoomId = topic;
     
     // Clear previous room messages and add welcome message
-    messageStore.clearRoom(topic);
+    // messageStore.clearRoom(topic);
     // const welcomeMessage = Message.system('Room created. Waiting for peers to join...', topic);
     // messageStore.addMessage(welcomeMessage);
     
@@ -271,7 +272,7 @@ class P2PChat {
       console.log('Successfully joined room');
       
       // Clear previous room messages and add joined message
-      messageStore.clearRoom(roomId);
+      // messageStore.clearRoom(roomId);
       // const joinedMessage = Message.system(`Joined room ${roomId}`, roomId);
       // messageStore.addMessage(joinedMessage);
       
@@ -306,7 +307,7 @@ class P2PChat {
     messageStore.addMessage(message);
 
     // Get messages to send based on host status
-    const conversation = messageStore.getMessages(this.currentRoomId)
+    const conversation = messageStore.getChats(this.currentRoomId)
     
     // Send to all peers
     let sentCount = 0;
@@ -339,12 +340,6 @@ class P2PChat {
         displayName: peer.displayName || peer.name,
         joinedAt: peer.joinedAt
       }));
-  }
-  
-  getMessages(roomId = null) {
-    const targetRoom = roomId || this.currentRoomId;
-    if (!targetRoom) return [];
-    return messageStore.getMessages(targetRoom);
   }
   
   /**
@@ -506,6 +501,51 @@ class P2PChat {
   onNewMessage(callback) {
     return messageStore.addListener(callback);
   }
+
+  /**
+   * Get messages for a specific chat
+   * @param {string} chatId - Chat ID
+   * @returns {Message[]} Array of messages for the chat
+   */
+  getChat(chatId) {
+    return messageStore.getChat(chatId);
+  }
+
+  /**
+   * Get all chats
+   * @returns {Map<string, Message[]>} Map of chatId to array of messages
+   */
+  getChats() {
+    return messageStore.getChats();
+  }
+
+  /**
+   * Create a new chat
+   * @returns {string} Chat ID
+   */
+  async createChat() {
+    const chatId = await this.createRoom();
+    this.chats.set(chatId, {
+      id: chatId,
+      title: null,
+      lastMessage: null,
+      timestamp: Date.now()
+    });
+    return chatId;
+  }
+
+  /**
+   * Delete a chat
+   * @param {string} chatId - Chat ID to delete
+   */
+  async deleteChat(chatId) {
+    if (this.chats.has(chatId)) {
+      this.chats.delete(chatId);
+      if (this.currentRoomId === chatId) {
+        await this.leaveRoom();
+      }
+    }
+  }
 }
 
 // Create a singleton instance
@@ -519,13 +559,16 @@ export default {
   getPeerCount: () => chatInstance.getPeerCount(),
   getCurrentTopic: () => chatInstance.getCurrentTopic(),
   getPeers: () => chatInstance.getPeers(),
-  getMessages: (roomId) => chatInstance.getMessages(roomId),
   leaveRoom: () => chatInstance.leaveRoom(),
   onNewMessage: (callback) => chatInstance.onNewMessage(callback),
   setDisplayName: (name) => chatInstance.setDisplayName(name),
   getUserIdentity: () => chatInstance.getUserIdentity(),
   setLLMConfig: (config) => chatInstance.setLLMConfig(config),
-  setHostStatus: (isHost) => chatInstance.setHostStatus(isHost)
+  setHostStatus: (isHost) => chatInstance.setHostStatus(isHost),
+  getChats: () => chatInstance.getChats(),
+  getChat: (chatId) => chatInstance.getChat(chatId),
+  createChat: () => chatInstance.createChat(),
+  deleteChat: (chatId) => chatInstance.deleteChat(chatId)
 };
 
 // Export the message handler function

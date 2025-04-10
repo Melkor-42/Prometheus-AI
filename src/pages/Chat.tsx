@@ -4,6 +4,10 @@ import { v4 as uuidv4 } from 'uuid';
 import CopyIcon from '../assets/copy.svg?react';
 import CopySuccessIcon from '../assets/copy-success.svg?react';
 import ReactMarkdown from 'react-markdown';
+import ProfileSettingsModal from '../components/ProfileSettingsModal';
+import LoadingState from '../components/LoadingState';
+import ChatSidebar from '../components/ChatSidebar';
+import MenuIcon from '../assets/hamburger.svg?react';
 
 interface ChatProps {
   roomId: string | null;
@@ -23,7 +27,9 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [peers, setPeers] = useState<Array<{id: string, displayName: string, joinedAt: number}>>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Check if ChatAPI is available
   useEffect(() => {
@@ -75,6 +81,23 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
     }
   }, [apiReady]);
 
+  // Load messages when currentChatId changes
+  useEffect(() => {
+    if (!apiReady || !currentChatId) return;
+
+    const loadMessages = async () => {
+      try {
+        const chatMessages = await window.ChatAPI.getChat(currentChatId);
+        setMessages(chatMessages);
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+        setMessages([]);
+      }
+    };
+
+    loadMessages();
+  }, [currentChatId, apiReady]);
+
   // Setup room when API is ready
   useEffect(() => {
     if (!apiReady) return;
@@ -99,26 +122,6 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
           setRoomTopic(window.ChatAPI.getCurrentTopic());
         }
         
-        // Load existing messages
-        try {
-          const existingMessages = window.ChatAPI.getMessages();
-          setStructuredMessages(existingMessages);
-          
-          // Convert to legacy message format for compatibility
-          const convertedMessages = existingMessages.map(msg => ({
-            id: msg.id,
-            sender: msg.sender.displayName || msg.sender.id,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            isMe: msg.sender.id === userIdentity?.id,
-            type: msg.type
-          }));
-          
-          setMessages(convertedMessages);
-        } catch (error) {
-          console.error('Failed to load messages:', error);
-        }
-        
         setIsConnecting(false);
       } catch (error) {
         console.error('Failed to join room:', error);
@@ -134,32 +137,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
       
       // Add to structured messages
       setStructuredMessages(prev => [...prev, message]);
-      
-      // Convert to legacy format for UI
-      const newMessage: Message = {
-        id: message.id,
-        sender: message.sender.displayName || message.sender.id,
-        content: message.content,
-        timestamp: message.timestamp,
-        isMe: message.sender.id === userIdentity?.id,
-        type: message.type
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
     });
-
-    // // Backward compatibility - legacy message listener
-    // window.ChatAPI.onMessage((sender, content) => {
-    //   console.log(`Received legacy message from ${sender}: ${content}`);
-    //   const newMessage: Message = {
-    //     id: uuidv4(),
-    //     sender,
-    //     content,
-    //     timestamp: Date.now(),
-    //     isMe: false,
-    //   };
-    //   setMessages(prev => [...prev, newMessage]);
-    // });
 
     // Setup peer info updater
     const peerInfoInterval = setInterval(() => {
@@ -171,23 +149,50 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
       clearInterval(peerInfoInterval);
       removeMessageListener();
     };
-  }, [roomId, onLeaveRoom, apiReady, userIdentity]);
+  }, [roomId, onLeaveRoom, apiReady]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSelectChat = async (chatId: string) => {
+    setCurrentChatId(chatId);
+    setRoomTopic(chatId);
+  };
+
+  const handleCreateNewChat = async () => {
+    try {
+      const newChatId = await window.ChatAPI.createChat();
+      setCurrentChatId(newChatId);
+      setRoomTopic(newChatId);
+      setMessages([]);
+    } catch (error) {
+      console.error('Failed to create new chat:', error);
+    }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!inputMessage.trim() || !apiReady) return;
     
-    // Send message to peers
-    window.ChatAPI.sendMessage(inputMessage);
-    
-    // Let the message listener handle adding the message to the UI
-    setInputMessage('');
+    try {
+      if (!currentChatId) {
+        // Create a new chat if none exists
+        const newChatId = await window.ChatAPI.createChat();
+        setCurrentChatId(newChatId);
+        setRoomTopic(newChatId);
+      }
+
+      // Send message to peers
+      window.ChatAPI.sendMessage(inputMessage);
+      
+      // Let the message listener handle adding the message to the UI
+      setInputMessage('');
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleLeaveRoom = async () => {
@@ -216,185 +221,158 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
     }
   };
 
-  // Render profile settings modal
-  const renderProfileSettings = () => {
-    if (!isProfileOpen) return null;
-    
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-full">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Profile Settings</h2>
-            <button 
-              onClick={() => setIsProfileOpen(false)}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              ✕
-            </button>
-          </div>
-          
-          <div className="mb-4">
-            <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Display Name
-            </label>
-            <input
-              type="text"
-              id="displayName"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="Enter your display name"
-            />
-          </div>
-          
-          <div className="flex justify-end">
-            <button
-              onClick={handleSaveProfile}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   if (!apiReady) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center p-4">
-          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
-            Initializing chat...
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Please wait while we set up the P2P connection
-          </p>
-        </div>
-      </div>
+      <LoadingState
+        title="Initializing chat..."
+        subtitle="Please wait while we set up the P2P connection"
+      />
     );
   }
 
   if (isConnecting) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center p-4">
-          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
-            Connecting to room...
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Establishing peer-to-peer connections
-          </p>
-        </div>
-      </div>
+      <LoadingState
+        title="Connecting to room..."
+        subtitle="Establishing peer-to-peer connections"
+      />
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Room header with peer count */}
-      <div className="p-4 rounded-t-lg flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Room: {roomTopic ? roomTopic.substring(0, 10) + '...' : 'Loading...'}
-          </h2>
-          <button 
-            onClick={handleCopyRoomId}
-            className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors duration-200"
-          >
-            {copySuccess ? (
-              <>
-                <CopySuccessIcon className="w-4 h-4 text-green-500" />
-                <span className="text-green-500">Copied!</span>
-              </>
-            ) : (
-              <>
-                <CopyIcon className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setIsProfileOpen(true)}
-            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors duration-200"
-          >
-            {userIdentity?.displayName || 'Set Name'}
-          </button>
-          <div className="text-sm text-gray-700 dark:text-gray-300">
-            <span className="font-semibold">{peerCount}</span> peers connected
-          </div>
-          <button
-            onClick={handleLeaveRoom}
-            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors duration-200"
-          >
-            Leave Room
-          </button>
-        </div>
-      </div>
-      
-      {/* Messages area - make only this part scrollable */}
-      <div className="flex-grow overflow-y-auto p-4 bg-white dark:bg-gray-900 space-y-3 custom-scrollbar scrollbar-hide-inactive">
-        {messages.length === 0 ? (
-          <p className="text-center text-gray-500 dark:text-gray-400 italic">
-            No messages yet. Start the conversation!
-          </p>
-        ) : (
-          messages.map(msg => (
-            <div 
-              key={msg.id}
-              className={`${
-                msg.type === 'system'
-                  ? 'mx-auto bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-center max-w-[90%] text-sm italic p-3 rounded-lg'
-                  : msg.isMe 
-                    ? 'ml-auto max-w-[80%] p-3 rounded-lg bg-blue-600 text-white'
-                    : 'mr-auto max-w-[80%] p-3'
-              }`}
-            >
-              {msg.type !== 'system' && (
-                <div className="font-semibold text-sm mb-1">
-                  {msg.isMe ? userIdentity?.displayName || 'You' : msg.sender}
-                </div>
-              )}
-              {msg.isMe ? (
-                <div>{msg.content}</div>
-              ) : (
-                <div className="prose dark:prose-invert max-w-none">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
-              )}
-              {msg.type !== 'system' && (
-                <div className="text-xs opacity-70 text-right mt-1">
-                  {new Date(msg.timestamp).toLocaleTimeString()}
-                </div>
-              )}
-            </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-      
-      {/* Message input form */}
-      <form onSubmit={handleSendMessage} className="p-4 bg-white dark:bg-gray-900 border-t dark:border-gray-700">
-        <div className="flex">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+    <div className="flex flex-1 h-full bg-gray-100 dark:bg-gray-900">
+      {/* Sidebar with toggle */}
+      <div className={`relative transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-80' : 'w-0'}`}>
+        <div className={`absolute top-0 left-0 h-full ${isSidebarOpen ? 'w-80' : 'w-0'} overflow-hidden transition-all duration-300 ease-in-out`}>
+          <ChatSidebar
+            onSelectChat={handleSelectChat}
+            currentChatId={currentChatId}
+            onCreateNewChat={handleCreateNewChat}
           />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 transition duration-200"
-          >
-            Send
-          </button>
         </div>
-      </form>
+      </div>
+
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col h-full">
+        {/* Room header */}
+        <div className="p-4 bg-white dark:bg-gray-800 shadow-sm flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
+              aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+            >
+              <MenuIcon className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+            </button>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Room: {roomTopic ? roomTopic.substring(0, 10) + '...' : 'Loading...'}
+            </h2>
+            <button 
+              onClick={handleCopyRoomId}
+              className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors duration-200"
+            >
+              {copySuccess ? (
+                <>
+                  <CopySuccessIcon className="w-4 h-4 text-green-500" />
+                  <span className="text-green-500">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <CopyIcon className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsProfileOpen(true)}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors duration-200"
+            >
+              {userIdentity?.displayName || 'Set Name'}
+            </button>
+            <div className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="font-semibold">{peerCount}</span> peers connected
+            </div>
+            <button
+              onClick={handleLeaveRoom}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors duration-200"
+            >
+              Leave Room
+            </button>
+          </div>
+        </div>
+        
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar scrollbar-hide-inactive">
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-center text-gray-500 dark:text-gray-400 italic">
+                No messages yet. Start the conversation!
+              </p>
+            </div>
+          ) : (
+            messages.map(msg => (
+              <div 
+                key={msg.id}
+                className={`${
+                  msg.type === 'system'
+                    ? 'mx-auto bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-center max-w-[90%] text-sm italic p-3 rounded-lg'
+                    : msg.isMe 
+                      ? 'ml-auto max-w-[80%] p-3 rounded-lg bg-blue-600 text-white'
+                      : 'mr-auto max-w-[80%] p-3 rounded-lg bg-gray-200 dark:bg-gray-800'
+                }`}
+              >
+                {msg.type !== 'system' && (
+                  <div className="font-semibold text-sm mb-1">
+                    {msg.isMe ? userIdentity?.displayName || 'You' : msg.sender}
+                  </div>
+                )}
+                {msg.isMe ? (
+                  <div>{msg.content}</div>
+                ) : (
+                  <div className="prose dark:prose-invert max-w-none">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                )}
+                {msg.type !== 'system' && (
+                  <div className="text-xs opacity-70 text-right mt-1">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        
+        {/* Message input form */}
+        <form onSubmit={handleSendMessage} className="p-4">
+          <div className="flex max-w-4xl mx-auto">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Type your message..."
+              className="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+            <button
+              type="submit"
+              className="px-6 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 transition duration-200"
+            >
+              Send
+            </button>
+          </div>
+        </form>
+      </div>
       
       {/* Profile settings modal */}
-      {renderProfileSettings()}
+      <ProfileSettingsModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        displayName={displayName}
+        onDisplayNameChange={setDisplayName}
+        onSave={handleSaveProfile}
+      />
     </div>
   );
 };

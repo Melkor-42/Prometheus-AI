@@ -84,6 +84,23 @@ function initializeBridge() {
         onMessage((peerName, message) => {
           callback(peerName, message);
         });
+      },
+      
+      // Chat management
+      getChats: () => {
+        return backend.getChats();
+      },
+
+      getChat: () => {
+        return backend.getChat(chatId);
+      },
+      
+      createChat: async () => {
+        return await backend.createChat();
+      },
+      
+      deleteChat: async (chatId) => {
+        return await backend.deleteChat(chatId);
       }
     };
     

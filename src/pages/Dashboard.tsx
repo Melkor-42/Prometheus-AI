@@ -6,10 +6,9 @@ import CopySuccessIcon from '../assets/copy-success.svg?react';
 interface DashboardProps {
   roomId: string | null;
   onLeaveRoom: () => void;
-  onNavigateToChat: (roomId: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ roomId, onLeaveRoom, onNavigateToChat }) => {
+const Dashboard: React.FC<DashboardProps> = ({ roomId, onLeaveRoom}) => {
   // State
   const [peerCount, setPeerCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
@@ -133,12 +132,6 @@ const Dashboard: React.FC<DashboardProps> = ({ roomId, onLeaveRoom, onNavigateTo
     
     await window.ChatAPI.leaveRoom();
     onLeaveRoom();
-  };
-
-  const handleGoToChat = () => {
-    if (roomTopic) {
-      onNavigateToChat(roomTopic);
-    }
   };
 
   const handleSaveProfile = () => {
