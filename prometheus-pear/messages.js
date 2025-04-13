@@ -124,13 +124,40 @@ export class MessageStore {
   }
 
   /**
+   * Create a new chat
+   * @returns {string} Chat ID
+   */
+  createChat() {
+    // Generate a unique chat ID using timestamp and random string
+    const chatId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    
+    // Initialize empty message array for the chat
+    this.chats.set(chatId, []);
+    return chatId;
+  }
+
+  /**
+   * Delete a chat
+   * @param {string} chatId - Chat ID to delete
+   * @returns {boolean} True if chat was deleted, false if it didn't exist
+   */
+  deleteChat(chatId) {
+    if (!this.chats.has(chatId)) {
+      return false;
+    }
+    
+    // Remove the chat and its messages
+    this.chats.delete(chatId);
+    return true;
+  }
+
+  /**
    * Get all chats
    * @returns {Map<string, Message[]>} Map of chatId to array of messages
    */
   getChats() {
     return this.chats;
   }
-
 
   /**
    * Get messages for a specific chat

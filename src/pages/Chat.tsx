@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Message, StructuredMessage, UserIdentity } from '../types/chat';
-import { v4 as uuidv4 } from 'uuid';
+import { Message, UserIdentity } from '../types/chat';
 import CopyIcon from '../assets/copy.svg?react';
 import CopySuccessIcon from '../assets/copy-success.svg?react';
 import ReactMarkdown from 'react-markdown';
@@ -16,7 +15,6 @@ interface ChatProps {
 
 const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [structuredMessages, setStructuredMessages] = useState<StructuredMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [peerCount, setPeerCount] = useState(0);
   const [roomTopic, setRoomTopic] = useState<string | null>(null);
@@ -27,7 +25,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [peers, setPeers] = useState<Array<{id: string, displayName: string, joinedAt: number}>>([]);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [currentChatId, setCurrentChatId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -88,17 +86,38 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
     const loadMessages = async () => {
       try {
         const chatMessages = await window.ChatAPI.getChat(currentChatId);
-        setMessages(chatMessages);
+        // Set isMe flag for existing messages
+        const identity = window.ChatAPI.getUserIdentity();
+        const processedMessages = chatMessages.map(msg => ({
+          ...msg,
+          isMe: msg.sender.id === identity.id
+        }));
+        setMessages(processedMessages);
       } catch (error) {
         console.error('Failed to load messages:', error);
         setMessages([]);
       }
     };
 
+    // Load initial messages
     loadMessages();
+
+    // Setup message listener for this chat
+    const removeMessageListener = window.ChatAPI.onNewMessage((message: Message) => {
+      if (message.chatId === currentChatId) {
+        const identity = window.ChatAPI.getUserIdentity();
+        const processedMessage = {
+          ...message,
+          isMe: message.sender.id === identity.id
+        };
+        setMessages(prev => [...prev, processedMessage]);
+      }
+    });
+
+    return () => removeMessageListener();
   }, [currentChatId, apiReady]);
 
-  // Setup room when API is ready
+  // Setup room
   useEffect(() => {
     if (!apiReady) return;
 
@@ -117,7 +136,6 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
           await window.ChatAPI.joinRoom(roomId);
           setRoomTopic(roomId);
         } else {
-          // We're already in a room
           console.log('Already in a room');
           setRoomTopic(window.ChatAPI.getCurrentTopic());
         }
@@ -131,14 +149,6 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
     
     setupRoom();
 
-    // Setup new message listener
-    const removeMessageListener = window.ChatAPI.onNewMessage((message: StructuredMessage) => {
-      console.log('Received new structured message:', message);
-      
-      // Add to structured messages
-      setStructuredMessages(prev => [...prev, message]);
-    });
-
     // Setup peer info updater
     const peerInfoInterval = setInterval(() => {
       setPeerCount(window.ChatAPI.getPeerCount());
@@ -147,7 +157,6 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
 
     return () => {
       clearInterval(peerInfoInterval);
-      removeMessageListener();
     };
   }, [roomId, onLeaveRoom, apiReady]);
 
@@ -158,14 +167,12 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
 
   const handleSelectChat = async (chatId: string) => {
     setCurrentChatId(chatId);
-    setRoomTopic(chatId);
   };
 
   const handleCreateNewChat = async () => {
     try {
       const newChatId = await window.ChatAPI.createChat();
       setCurrentChatId(newChatId);
-      setRoomTopic(newChatId);
       setMessages([]);
     } catch (error) {
       console.error('Failed to create new chat:', error);
@@ -178,17 +185,14 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
     if (!inputMessage.trim() || !apiReady) return;
     
     try {
-      if (!currentChatId) {
-        // Create a new chat if none exists
-        const newChatId = await window.ChatAPI.createChat();
-        setCurrentChatId(newChatId);
-        setRoomTopic(newChatId);
+      let chatId = currentChatId;
+      if (!chatId || chatId === '') {
+        chatId = await window.ChatAPI.createChat();
+        setCurrentChatId(chatId);
       }
 
-      // Send message to peers
-      window.ChatAPI.sendMessage(inputMessage);
-      
-      // Let the message listener handle adding the message to the UI
+      // Send message - the message will be added to the UI through the message listener
+      await window.ChatAPI.sendMessage(inputMessage, chatId);
       setInputMessage('');
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -316,26 +320,58 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
                 key={msg.id}
                 className={`${
                   msg.type === 'system'
-                    ? 'mx-auto bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-center max-w-[90%] text-sm italic p-3 rounded-lg'
+                    ? 'mx-auto text-gray-600 dark:text-gray-400 text-center max-w-[90%] text-sm italic p-3'
                     : msg.isMe 
-                      ? 'ml-auto max-w-[80%] p-3 rounded-lg bg-blue-600 text-white'
-                      : 'mr-auto max-w-[80%] p-3 rounded-lg bg-gray-200 dark:bg-gray-800'
+                      ? 'ml-auto max-w-[80%] p-3 text-gray-800 dark:text-gray-200'
+                      : 'w-full p-4'
                 }`}
               >
                 {msg.type !== 'system' && (
-                  <div className="font-semibold text-sm mb-1">
-                    {msg.isMe ? userIdentity?.displayName || 'You' : msg.sender}
+                  <div className="font-semibold text-sm mb-2 text-gray-700 dark:text-gray-300">
+                    {msg.isMe ? userIdentity?.displayName || 'You' : msg.sender.displayName}
                   </div>
                 )}
                 {msg.isMe ? (
-                  <div>{msg.content}</div>
+                  <div className="text-gray-800 dark:text-gray-200">{msg.content}</div>
                 ) : (
                   <div className="prose dark:prose-invert max-w-none">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-4 text-gray-800 dark:text-gray-200">{children}</p>,
+                        h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">{children}</h3>,
+                        ul: ({ children }) => <ul className="list-disc pl-4 mb-4 text-gray-800 dark:text-gray-200">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-4 text-gray-800 dark:text-gray-200">{children}</ol>,
+                        li: ({ children }) => <li className="mb-1 text-gray-800 dark:text-gray-200">{children}</li>,
+                        code: ({ children }) => (
+                          <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-sm font-mono text-gray-800 dark:text-gray-200">
+                            {children}
+                          </code>
+                        ),
+                        pre: ({ children }) => (
+                          <pre className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg overflow-x-auto mb-4 text-gray-800 dark:text-gray-200">
+                            {children}
+                          </pre>
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-4 text-gray-700 dark:text-gray-300">
+                            {children}
+                          </blockquote>
+                        ),
+                        a: ({ href, children }) => (
+                          <a href={href} className="text-blue-600 dark:text-blue-400 hover:underline">
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
                   </div>
                 )}
                 {msg.type !== 'system' && (
-                  <div className="text-xs opacity-70 text-right mt-1">
+                  <div className="text-xs opacity-70 text-right mt-2 text-gray-500 dark:text-gray-400">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </div>
                 )}

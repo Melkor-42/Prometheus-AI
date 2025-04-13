@@ -17,7 +17,6 @@ class P2PChat {
     this.messageCallback = null;
     this.peers = new Map(); // Store peer information
     this.llmProvider = null; // LLM provider instance
-    this.chats = new Map(); // Store chat information
     
     // Set up event listeners
     this._setupEventListeners();
@@ -100,7 +99,7 @@ class P2PChat {
         if (this.currentRoomId) {
           const displayName = peerInfo?.displayName || name;
           // const leaveMessage = Message.system(`User ${displayName} left the chat`, this.currentRoomId);
-          messageStore.addMessage(leaveMessage);
+          // messageStore.addMessage(leaveMessage);
         }
       });
     });
@@ -213,13 +212,14 @@ class P2PChat {
       // Create a message from the LLM response
       const identity = userIdentity.getIdentity();
       const botName = `${identity.displayName}'s LLM`;
+      const chatId = messages[0].chatId
       
       const llmResponseMessage = new Message(
         responseText,
         MessageRole.ASSISTANT,
         identity.id,
         MessageType.TEXT,
-        this.currentRoomId,
+        chatId,
         botName,
         reasoningContent
       );
@@ -283,7 +283,7 @@ class P2PChat {
     }
   }
 
-  sendMessage(content) {
+  sendMessage(content, chatId) {
     if (!this.currentRoomId) {
       console.error('Cannot send message: not in a room');
       return false;
@@ -291,7 +291,7 @@ class P2PChat {
     
     // Get current user identity and host status
     const identity = userIdentity.getIdentity();
-    const hostStatus = userIdentity.getHostStatus();
+    // const hostStatus = userIdentity.getHostStatus();
 
     // Create structured message
     const message = new Message(
@@ -299,7 +299,7 @@ class P2PChat {
       MessageRole.USER,
       identity.id, 
       MessageType.TEXT,
-      this.currentRoomId,
+      chatId,
       identity.displayName
     );
 
@@ -307,7 +307,7 @@ class P2PChat {
     messageStore.addMessage(message);
 
     // Get messages to send based on host status
-    const conversation = messageStore.getChats(this.currentRoomId)
+    const conversation = messageStore.getChat(chatId)
     
     // Send to all peers
     let sentCount = 0;
@@ -524,27 +524,16 @@ class P2PChat {
    * @returns {string} Chat ID
    */
   async createChat() {
-    const chatId = await this.createRoom();
-    this.chats.set(chatId, {
-      id: chatId,
-      title: null,
-      lastMessage: null,
-      timestamp: Date.now()
-    });
-    return chatId;
+    return messageStore.createChat();
   }
 
   /**
    * Delete a chat
    * @param {string} chatId - Chat ID to delete
+   * @returns {boolean} True if chat was deleted, false if it didn't exist
    */
   async deleteChat(chatId) {
-    if (this.chats.has(chatId)) {
-      this.chats.delete(chatId);
-      if (this.currentRoomId === chatId) {
-        await this.leaveRoom();
-      }
-    }
+    return messageStore.deleteChat(chatId);
   }
 }
 
@@ -555,7 +544,7 @@ const chatInstance = new P2PChat();
 export default {
   createRoom: () => chatInstance.createRoom(),
   joinRoom: (roomId, stealth) => chatInstance.joinRoom(roomId, stealth),
-  sendMessage: (message) => chatInstance.sendMessage(message),
+  sendMessage: (message, chatId) => chatInstance.sendMessage(message, chatId),
   getPeerCount: () => chatInstance.getPeerCount(),
   getCurrentTopic: () => chatInstance.getCurrentTopic(),
   getPeers: () => chatInstance.getPeers(),

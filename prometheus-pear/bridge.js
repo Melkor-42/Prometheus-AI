@@ -36,8 +36,8 @@ function initializeBridge() {
       },
       
       // Message handling
-      sendMessage: (message) => {
-        return backend.sendMessage(message);
+      sendMessage: (message, chatId) => {
+        return backend.sendMessage(message, chatId);
       },
       
       getMessages: (roomId) => {
@@ -91,12 +91,12 @@ function initializeBridge() {
         return backend.getChats();
       },
 
-      getChat: () => {
+      getChat: (chatId) => {
         return backend.getChat(chatId);
       },
       
-      createChat: async () => {
-        return await backend.createChat();
+      createChat: () => {
+        return backend.createChat();
       },
       
       deleteChat: async (chatId) => {

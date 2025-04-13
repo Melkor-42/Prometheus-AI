@@ -11,7 +11,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ roomId, onLeaveRoom}) => {
   // State
   const [peerCount, setPeerCount] = useState(0);
-  const [messageCount, setMessageCount] = useState(0);
+  const [tokenCount, setTokenCount] = useState(0);
   const [roomTopic, setRoomTopic] = useState<string | null>(null);
   const [apiReady, setApiReady] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -106,9 +106,7 @@ const Dashboard: React.FC<DashboardProps> = ({ roomId, onLeaveRoom}) => {
       // Update peer list
       setPeers(window.ChatAPI.getPeers());
       
-      // Update message count
-      const messages = window.ChatAPI.getMessages();
-      setMessageCount(messages.length);
+      //TODO: Update Number of Tokens.
     }, 1000);
 
     return () => {
@@ -257,8 +255,8 @@ const Dashboard: React.FC<DashboardProps> = ({ roomId, onLeaveRoom}) => {
                 <span className="text-gray-900 dark:text-white">{peerCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Total Messages:</span>
-                <span className="text-gray-900 dark:text-white">{messageCount}</span>
+                <span className="text-gray-600 dark:text-gray-400">Total Tokens:</span>
+                <span className="text-gray-900 dark:text-white">{tokenCount}</span>
               </div>
             </div>
           </div>

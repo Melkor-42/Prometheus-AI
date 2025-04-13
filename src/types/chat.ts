@@ -1,14 +1,5 @@
 export interface Message {
   id: string;
-  sender: string;
-  content: string;
-  timestamp: number;
-  isMe: boolean;
-  type: string;
-}
-
-export interface StructuredMessage {
-  id: string;
   content: string;
   role: string;
   sender: {
@@ -18,7 +9,12 @@ export interface StructuredMessage {
   timestamp: number;
   type: string;
   chatId: string;
-  reasoning_content?: string;
+  reasoning_content: string | null;
+  isMe?: boolean;
+}
+
+export interface StructuredMessage extends Message {
+  isMe: boolean;
 }
 
 export interface Room {
@@ -54,7 +50,7 @@ export interface ChatAPI {
   createRoom: () => Promise<string>;
   joinRoom: (topicHex: string) => Promise<boolean>;
   leaveRoom: () => Promise<boolean>;
-  sendMessage: (message: string) => boolean;
+  sendMessage: (message: string, chatId: string) => boolean;
   getPeerCount: () => number;
   getCurrentTopic: () => string | null;
   getPeers: () => Array<{id: string, displayName: string, joinedAt: number}>;
