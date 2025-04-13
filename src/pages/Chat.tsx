@@ -8,6 +8,7 @@ import LoadingState from '../components/LoadingState';
 import ChatSidebar from '../components/ChatSidebar';
 import MenuIcon from '../assets/hamburger.svg?react';
 import ChatMessage from '../components/ChatMessage';
+import LoadingDots from '../components/LoadingDots';
 
 interface ChatProps {
   roomId: string | null;
@@ -27,6 +28,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
   const [displayName, setDisplayName] = useState('');
   const [peers, setPeers] = useState<Array<{id: string, displayName: string, joinedAt: number}>>([]);
   const [currentChatId, setCurrentChatId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -112,6 +114,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
           isMe: message.sender.id === identity.id
         };
         setMessages(prev => [...prev, processedMessage]);
+        setIsLoading(false);
       }
     });
 
@@ -195,6 +198,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
       // Send message - the message will be added to the UI through the message listener
       await window.ChatAPI.sendMessage(inputMessage, chatId);
       setInputMessage('');
+      setIsLoading(true);
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -316,13 +320,28 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
               </p>
             </div>
           ) : (
-            messages.map(msg => (
-              <ChatMessage
-                key={msg.id}
-                message={msg}
-                userIdentity={userIdentity}
-              />
-            ))
+            <>
+              {messages.map(msg => (
+                <ChatMessage
+                  key={msg.id}
+                  message={msg}
+                  userIdentity={userIdentity}
+                />
+              ))}
+              {isLoading && (
+                <div className="flex items-start gap-3 max-w-3xl">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    AI
+                  </div>
+                  <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg p-4">
+                    <div className="font-medium text-sm mb-2 text-gray-700 dark:text-gray-300">
+                      AI Assistant
+                    </div>
+                    <LoadingDots />
+                  </div>
+                </div>
+              )}
+            </>
           )}
           <div ref={messagesEndRef} />
         </div>
