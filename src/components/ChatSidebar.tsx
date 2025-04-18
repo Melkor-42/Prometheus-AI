@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 interface Chat {
   id: string;
   title: string;
-  lastMessage?: string;
+  firstMessage?: string;
   timestamp: number;
 }
 
@@ -30,14 +30,20 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelectChat, currentChatId, 
       const chatList: Chat[] = [];
       
       allChats.forEach((messages: any[], id: string) => {
-        const lastMessage = messages.length > 0 ? messages[messages.length - 1].content : undefined;
-        const timestamp = messages.length > 0 ? messages[messages.length - 1].timestamp : Date.now();
+        // Get the first message for preview instead of the last one
+        const firstMessage = messages.length > 0 ? messages[0].content : undefined;
+        // Use the timestamp of the first message as creation date
+        const creationTimestamp = messages.length > 0 ? messages[0].timestamp : Date.now();
+        const lastMessageTimestamp = messages.length > 0 ? messages[messages.length - 1].timestamp : Date.now();
+        
+        // Format the date for the title
+        const creationDate = new Date(creationTimestamp).toLocaleDateString();
         
         chatList.push({
           id,
-          title: `Chat ${id.substring(0, 8)}`,
-          lastMessage,
-          timestamp
+          title: `Chat: ${creationDate}`,
+          firstMessage,
+          timestamp: lastMessageTimestamp // Still sort by last message time
         });
       });
       
@@ -109,7 +115,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelectChat, currentChatId, 
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar scrollbar-hide-inactive">
         {isLoading ? (
           <div className="p-4 text-center text-gray-500">
             Loading chats...
@@ -125,17 +131,17 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelectChat, currentChatId, 
                 key={chat.id}
                 className={`p-4 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 ${
                   currentChatId === chat.id ? 'bg-gray-200 dark:bg-gray-700' : ''
-                }`}
+                } w-full`}
                 onClick={() => onSelectChat(chat.id)}
               >
                 <div className="flex justify-between items-start">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-gray-900 dark:text-white truncate">
-                      {chat.title}
+                      <span className="font-medium">Chat:</span> <span className="font-normal">{new Date(chat.timestamp).toLocaleDateString()}</span>
                     </h3>
-                    {chat.lastMessage && (
+                    {chat.firstMessage && (
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                        {chat.lastMessage}
+                        {chat.firstMessage}
                       </p>
                     )}
                   </div>
@@ -144,7 +150,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelectChat, currentChatId, 
                       e.stopPropagation();
                       handleDeleteChat(chat.id);
                     }}
-                    className="ml-2 text-gray-400 hover:text-red-500"
+                    className="ml-2 text-gray-400 hover:text-red-500 flex-shrink-0"
                   >
                     ×
                   </button>
