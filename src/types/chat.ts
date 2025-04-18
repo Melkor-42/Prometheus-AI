@@ -67,6 +67,9 @@ export interface ChatAPI {
   getChat: (chatId: string) => Promise<Message[]>;
   createChat: () => Promise<string>;
   deleteChat: (chatId: string) => Promise<void>;
+  
+  // Chat update listener
+  onChatUpdate: (callback: (chats: Map<string, Message[]>) => void) => () => void;
 }
 
 // Define the global ChatAPI interface

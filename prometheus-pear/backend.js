@@ -503,6 +503,15 @@ class P2PChat {
   }
 
   /**
+   * Register a listener for chat updates
+   * @param {Function} callback - Called when chats are modified
+   * @returns {Function} Function to remove the listener
+   */
+  onChatUpdate(callback) {
+    return messageStore.addChatListener(callback);
+  }
+
+  /**
    * Get messages for a specific chat
    * @param {string} chatId - Chat ID
    * @returns {Message[]} Array of messages for the chat
@@ -550,6 +559,7 @@ export default {
   getPeers: () => chatInstance.getPeers(),
   leaveRoom: () => chatInstance.leaveRoom(),
   onNewMessage: (callback) => chatInstance.onNewMessage(callback),
+  onChatUpdate: (callback) => chatInstance.onChatUpdate(callback),
   setDisplayName: (name) => chatInstance.setDisplayName(name),
   getUserIdentity: () => chatInstance.getUserIdentity(),
   setLLMConfig: (config) => chatInstance.setLLMConfig(config),

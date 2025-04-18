@@ -48,6 +48,11 @@ function initializeBridge() {
         return backend.onNewMessage(callback);
       },
       
+      // Chat update listener
+      onChatUpdate: (callback) => {
+        return backend.onChatUpdate(callback);
+      },
+      
       // Status information
       getPeerCount: () => {
         return backend.getPeerCount();

@@ -18,32 +18,39 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelectChat, currentChatId, 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch chats from MessageStore
+  // Fetch chats and setup listener for updates
   useEffect(() => {
-    const fetchChats = async () => {
-      if (!window.ChatAPI) {
-        setIsLoading(false);
-        return;
-      }
+    if (!window.ChatAPI) {
+      setIsLoading(false);
+      return;
+    }
 
+    // Helper function to convert message map to chat list
+    const processChatsMap = (allChats: any) => {
+      const chatList: Chat[] = [];
+      
+      allChats.forEach((messages: any[], id: string) => {
+        const lastMessage = messages.length > 0 ? messages[messages.length - 1].content : undefined;
+        const timestamp = messages.length > 0 ? messages[messages.length - 1].timestamp : Date.now();
+        
+        chatList.push({
+          id,
+          title: `Chat ${id.substring(0, 8)}`,
+          lastMessage,
+          timestamp
+        });
+      });
+      
+      // Sort chats by timestamp (newest first)
+      return chatList.sort((a, b) => b.timestamp - a.timestamp);
+    };
+
+    // Initial fetch of chats
+    const fetchChats = async () => {
       try {
         setIsLoading(true);
         const allChats = await window.ChatAPI.getChats();
-        const chatList: Chat[] = [];
-        
-        allChats.forEach((messages, id) => {
-          const lastMessage = messages.length > 0 ? messages[messages.length - 1].content : undefined;
-          const timestamp = messages.length > 0 ? messages[messages.length - 1].timestamp : Date.now();
-          
-          chatList.push({
-            id,
-            title: `Chat ${id.substring(0, 8)}`,
-            lastMessage,
-            timestamp
-          });
-        });
-        
-        setChats(chatList);
+        setChats(processChatsMap(allChats));
         setError(null);
       } catch (err) {
         console.error('Failed to fetch chats:', err);
@@ -54,6 +61,18 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelectChat, currentChatId, 
     };
 
     fetchChats();
+
+    // Set up listener for chat updates
+    const removeChatListener = window.ChatAPI.onChatUpdate((updatedChats: any) => {
+      setChats(processChatsMap(updatedChats));
+    });
+
+    // Clean up listener on unmount
+    return () => {
+      if (removeChatListener) {
+        removeChatListener();
+      }
+    };
   }, []);
 
   const handleDeleteChat = async (chatId: string) => {
@@ -61,7 +80,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelectChat, currentChatId, 
     
     try {
       await window.ChatAPI.deleteChat(chatId);
-      setChats(prev => prev.filter(chat => chat.id !== chatId));
+      // No need to manually update the chats state here
+      // as the chat listener will handle the update
+      
       if (currentChatId === chatId) {
         onSelectChat('');
       }

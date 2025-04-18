@@ -103,6 +103,7 @@ export class MessageStore {
   constructor() {
     this.chats = new Map(); // chatId -> messages[]
     this.listeners = new Set();
+    this.chatListeners = new Set(); // New set for chat listeners
   }
 
   /**
@@ -114,6 +115,7 @@ export class MessageStore {
     
     if (!this.chats.has(message.chatId)) {
       this.chats.set(message.chatId, []);
+      this._notifyChatListeners(); // Notify when a new chat is created via message
     }
     
     const chatMessages = this.chats.get(message.chatId);
@@ -133,6 +135,10 @@ export class MessageStore {
     
     // Initialize empty message array for the chat
     this.chats.set(chatId, []);
+    
+    // Notify chat listeners about the new chat
+    this._notifyChatListeners();
+    
     return chatId;
   }
 
@@ -148,6 +154,10 @@ export class MessageStore {
     
     // Remove the chat and its messages
     this.chats.delete(chatId);
+    
+    // Notify chat listeners about the deletion
+    this._notifyChatListeners();
+    
     return true;
   }
 
@@ -174,6 +184,7 @@ export class MessageStore {
    */
   clearChat(chatId) {
     this.chats.delete(chatId);
+    this._notifyChatListeners();
   }
 
   /**
@@ -187,6 +198,16 @@ export class MessageStore {
   }
 
   /**
+   * Add a listener for chat changes
+   * @param {Function} callback - Called when chats are modified
+   * @returns {Function} Function to remove the listener
+   */
+  addChatListener(callback) {
+    this.chatListeners.add(callback);
+    return () => this.chatListeners.delete(callback);
+  }
+
+  /**
    * Notify all listeners about a new message
    * @private
    * @param {Message} message - New message
@@ -197,6 +218,20 @@ export class MessageStore {
         listener(message);
       } catch (err) {
         console.error('Error in message listener:', err);
+      }
+    }
+  }
+
+  /**
+   * Notify all chat listeners about changes
+   * @private
+   */
+  _notifyChatListeners() {
+    for (const listener of this.chatListeners) {
+      try {
+        listener(this.chats);
+      } catch (err) {
+        console.error('Error in chat listener:', err);
       }
     }
   }
