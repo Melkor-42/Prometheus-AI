@@ -39,7 +39,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, userIdentity }) => {
             </div>
           )}
           {message.isMe ? (
-            <div className="text-gray-800 dark:text-gray-200">{message.content}</div>
+            <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{message.content}</div>
           ) : (
             <div className="prose dark:prose-invert max-w-none">
               <ReactMarkdown
