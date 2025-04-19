@@ -30,6 +30,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
   const [currentChatId, setCurrentChatId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Check if ChatAPI is available
@@ -169,6 +170,27 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Check if content has multiple lines
+      const lineCount = (inputMessage.match(/\n/g) || []).length + 1;
+      
+      if (lineCount > 1) {
+        // Multiple lines - adjust height based on content
+        textarea.style.height = '44px'; // Reset height before calculating
+        const newHeight = Math.min(textarea.scrollHeight, 120); // Max height of 120px (4 lines)
+        textarea.style.height = `${newHeight}px`;
+        textarea.style.overflowY = 'auto';
+      } else {
+        // Single line - keep fixed height
+        textarea.style.height = '44px';
+        textarea.style.overflowY = 'hidden';
+      }
+    }
+  }, [inputMessage]);
+
   const handleSelectChat = async (chatId: string) => {
     setCurrentChatId(chatId);
   };
@@ -201,6 +223,13 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
       setIsLoading(true);
     } catch (error) {
       console.error('Failed to send message:', error);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e);
     }
   };
 
@@ -348,17 +377,19 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
         
         {/* Message input form */}
         <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex max-w-3xl mx-auto">
-            <input
-              type="text"
+          <div className="flex max-w-3xl mx-auto items-center">
+            <textarea
+              ref={textareaRef}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Type your message..."
-              className="flex-grow px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className={`flex-grow px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white resize-none min-h-[44px] max-h-[120px] ${(inputMessage.match(/\n/g) || []).length > 0 ? 'custom-scrollbar scrollbar-hide-inactive overflow-y-auto' : ''}`}
+              style={{ height: '44px', overflowY: (inputMessage.match(/\n/g) || []).length > 0 ? 'auto' : 'hidden' }}
             />
             <button
               type="submit"
-              className="px-6 py-3 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 transition duration-200"
+              className="px-6 py-3 h-[44px] bg-blue-600 text-white rounded-r-md hover:bg-blue-700 transition duration-200"
             >
               Send
             </button>
