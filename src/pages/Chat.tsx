@@ -264,7 +264,7 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
       {/* Main chat area */}
       <div className="flex-1 flex flex-col h-full max-w-4xl mx-auto">
         {/* Room header */}
-        <div className="p-4 bg-white dark:bg-gray-800 shadow-sm flex justify-between items-center">
+        <div className="p-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -300,13 +300,13 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
               {userIdentity?.displayName || 'Set Name'}
             </button>
             <div className="text-sm text-gray-700 dark:text-gray-300">
-              <span className="font-semibold">{peerCount}</span> peers connected
+              <span className="font-semibold">{peerCount}</span> peers
             </div>
             <button
               onClick={handleLeaveRoom}
               className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors duration-200"
             >
-              Leave Room
+              Leave
             </button>
           </div>
         </div>
