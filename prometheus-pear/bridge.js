@@ -12,100 +12,106 @@ function waitForPear() {
 function initializeBridge() {
   // Now we can safely import the backend
   Promise.all([
-    import('./backend.js'),
-    import('./llm-service.js')
-  ]).then(([backendModule, llmServiceModule]) => {
-    console.log('Backend and LLM service imported successfully');
+    import('./src/main.js'),
+    import('./src/services/llm-service.js')
+  ]).then(([mainModule, llmServiceModule]) => {
+    console.log('Main module and LLM service imported successfully');
     
-    const { default: backend, onMessage } = backendModule;
+    // const { default: api, onMessage } = mainModule;
+    const { default: api } = mainModule;
     const { default: llmService } = llmServiceModule;
     
     // Expose the backend API to the window object so it can be accessed from the frontend
     window.ChatAPI = {
       // Room management
       createRoom: async () => {
-        return await backend.createRoom();
+        return await api.createRoom();
       },
       
       joinRoom: async (roomId) => {
-        return await backend.joinRoom(roomId);
+        return await api.joinRoom(roomId);
       },
       
       leaveRoom: async () => {
-        return await backend.leaveRoom();
+        return await api.leaveRoom();
       },
       
       // Message handling
       sendMessage: (message, chatId) => {
-        return backend.sendMessage(message, chatId);
+        return api.sendMessage(message, chatId);
       },
       
       getMessages: (roomId) => {
-        return backend.getMessages(roomId);
+        return api.getMessages(roomId);
       },
       
       onNewMessage: (callback) => {
-        return backend.onNewMessage(callback);
+        return api.onNewMessage(callback);
       },
       
       // Chat update listener
       onChatUpdate: (callback) => {
-        return backend.onChatUpdate(callback);
+        return api.onChatUpdate(callback);
       },
       
       // Status information
       getPeerCount: () => {
-        return backend.getPeerCount();
+        return api.getPeerCount();
       },
       
       getPeers: () => {
-        return backend.getPeers();
+        return api.getPeers();
       },
       
       getCurrentTopic: () => {
-        return backend.getCurrentTopic();
+        return api.getCurrentTopic();
       },
       
       // User identity management
       setDisplayName: (name) => {
-        return backend.setDisplayName(name);
+        return api.setDisplayName(name);
       },
       
       getUserIdentity: () => {
-        return backend.getUserIdentity();
+        return api.getUserIdentity();
       },
       
       // LLM hosting
       setLLMConfig: (config) => {
-        return backend.setLLMConfig(config);
+        return api.setLLMConfig(config);
       },
       
       setHostStatus: (isHost) => {
-        return backend.setHostStatus(isHost);
+        // This will reinitialize the chat system with the appropriate implementation
+        window.ChatAPI = {
+          ...window.ChatAPI,
+          ...api.initialize(isHost)
+        };
+        return true;
       },
       
-      // Legacy message handler (for backwards compatibility)
-      onMessage: (callback) => {
-        onMessage((peerName, message) => {
-          callback(peerName, message);
-        });
-      },
+      // // Legacy message handler (for backwards compatibility)
+      // onMessage: (callback) => {
+      //   onMessage((peerName, message) => {
+      //     callback(peerName, message);
+      //   });
+      // },
       
       // Chat management
       getChats: () => {
-        return backend.getChats();
+        return api.getChats();
       },
 
       getChat: (chatId) => {
-        return backend.getChat(chatId);
+        return api.getChat(chatId);
       },
       
       createChat: () => {
-        return backend.createChat();
+        return api.createChat();
       },
       
       deleteChat: async (chatId) => {
-        return await backend.deleteChat(chatId);
+        return await api.deleteChat(chatId);
       }
     };
     
@@ -114,8 +120,8 @@ function initializeBridge() {
     
     // Also import the message and identity modules to make them available globally
     Promise.all([
-      import('./messages.js'),
-      import('./identity.js')
+      import('./src/models/message.js'),
+      import('./src/services/identity.js')
     ]).then(([messageModule, identityModule]) => {
       window.ChatMessage = messageModule.Message;
       window.MessageType = messageModule.MessageType;

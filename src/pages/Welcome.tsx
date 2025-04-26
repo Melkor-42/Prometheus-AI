@@ -57,8 +57,12 @@ const Welcome: React.FC<WelcomeProps> = ({ onJoinRoom, onCreateHostRoom }) => {
     setError(null);
     
     try {
+      console.log('Setting up as host...');
+      // First set host status to true to create a ServerPeer
+      await window.ChatAPI.setHostStatus(true);
+      
       console.log('Creating host room...');
-      // Create a new room using the ChatAPI
+      // Now create a room using the ServerPeer instance
       const roomId = await window.ChatAPI.createRoom();
       console.log('Host room created:', roomId);
       // Navigate to the host LLM page using the prop function
