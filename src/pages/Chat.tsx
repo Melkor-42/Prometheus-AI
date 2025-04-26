@@ -165,10 +165,12 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
     };
   }, [roomId, onLeaveRoom, apiReady]);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change or loading state changes
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [messages, isLoading]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -358,16 +360,11 @@ const Chat: React.FC<ChatProps> = ({ roomId, onLeaveRoom }) => {
                 />
               ))}
               {isLoading && (
-                <div className="flex items-start gap-3 max-w-3xl">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                    AI
+                <div className="flex flex-col w-full">
+                  <div className="font-medium text-sm mb-2 text-gray-700 dark:text-gray-300">
+                    AI Assistant
                   </div>
-                  <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg p-4">
-                    <div className="font-medium text-sm mb-2 text-gray-700 dark:text-gray-300">
-                      AI Assistant
-                    </div>
-                    <LoadingDots />
-                  </div>
+                  <LoadingDots />
                 </div>
               )}
             </>
