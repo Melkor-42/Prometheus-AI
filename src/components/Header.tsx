@@ -10,7 +10,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ darkMode, toggleDarkMode }) => {
   return (
     <header className="draggable bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <div className="w-full mx-auto pl-4 sm:pl-6 lg:pl-8 h-16 flex items-center">
+      <div className="w-full mx-auto pl-4 sm:pl-6 lg:pl-8 h-12 flex items-center">
         <h1 className="text-lg font-bold text-gray-900 dark:text-white">Prometheus AI</h1>
 
         <div className="flex-grow" />
