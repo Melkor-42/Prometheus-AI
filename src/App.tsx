@@ -2,15 +2,18 @@ import { useState, useEffect } from 'react'
 import Layout from './components/Layout'
 import Welcome from './pages/Welcome'
 import Chat from './pages/Chat'
+import HostLLM from './pages/HostLLM'
+import Dashboard from './pages/Dashboard'
+import { UserIdentity } from './types/chat'
 
 // Define app states
-type AppPage = 'welcome' | 'chat';
+type AppPage = 'welcome' | 'chat' | 'hostLLM' | 'dashboard';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false)
   const [currentPage, setCurrentPage] = useState<AppPage>('welcome')
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null)
-  // const [currentRoomId, setCurrentRoomId] = useState<string | null>("1234567890")
+  const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
@@ -26,7 +29,20 @@ function App() {
       const existingRoom = window.ChatAPI.getCurrentTopic();
       if (existingRoom) {
         setCurrentRoomId(existingRoom);
-        setCurrentPage('chat');
+        
+        // Check if we're a host, navigate to dashboard instead of chat
+        try {
+          const identity = window.ChatAPI.getUserIdentity();
+          setUserIdentity(identity);
+          if (identity.hostStatus?.isHost) {
+            setCurrentPage('dashboard');
+          } else {
+            setCurrentPage('chat');
+          }
+        } catch (error) {
+          console.error('Failed to check host status:', error);
+          setCurrentPage('chat');
+        }
       }
     }
   }, [])
@@ -50,6 +66,16 @@ function App() {
     setCurrentPage('chat');
   }
 
+  const navigateToHostLLM = (roomId: string) => {
+    setCurrentRoomId(roomId);
+    setCurrentPage('hostLLM');
+  }
+
+  const navigateToDashboard = (roomId: string) => {
+    setCurrentRoomId(roomId);
+    setCurrentPage('dashboard');
+  }
+
   const navigateToWelcome = () => {
     setCurrentPage('welcome');
     setCurrentRoomId(null);
@@ -58,11 +84,30 @@ function App() {
   // Render the correct component based on current state
   const renderCurrentPage = () => {
     switch (currentPage) {
+      case 'dashboard':
+        return (
+          <Dashboard 
+            roomId={currentRoomId} 
+            onLeaveRoom={navigateToWelcome}
+          />
+        );
       case 'chat':
-        return <Chat roomId={currentRoomId} onLeaveRoom={navigateToWelcome} />;
+        return (
+          <div className="flex h-full">
+            <Chat roomId={currentRoomId} onLeaveRoom={navigateToWelcome} />
+          </div>
+        );
+      case 'hostLLM':
+        return (
+          <HostLLM 
+            roomId={currentRoomId} 
+            onLeaveRoom={navigateToWelcome}
+            onContinueToChat={(roomId) => navigateToDashboard(roomId)}
+          />
+        );
       case 'welcome':
       default:
-        return <Welcome onJoinRoom={navigateToChat} />;
+        return <Welcome onJoinRoom={navigateToChat} onCreateHostRoom={navigateToHostLLM} />;
     }
   }
 

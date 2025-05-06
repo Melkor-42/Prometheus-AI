@@ -13,7 +13,7 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, toggleDarkMode }) =
     <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-gray-900 transition-colors duration-200">
       <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
       <main className="flex-grow overflow-hidden">
-        <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="h-full w-full">
           {children}
         </div>
       </main>
